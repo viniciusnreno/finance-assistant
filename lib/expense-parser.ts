@@ -51,7 +51,8 @@ Regras:
 4. Se não houver data, use a data de hoje.
 5. Confidence é um número entre 0 e 1 indicando sua certeza na extração.
 6. Valores em reais não precisam do símbolo R$, apenas o número.
-7. Sempre responda em JSON válido conforme o schema.`;
+7. Sempre responda em JSON válido conforme o schema.
+8. A resposta DEVE ser um objeto JSON com as chaves "expenses", "needs_clarification" e opcionalmente "clarification_message". NUNCA retorne um array na raiz.`;
 
 export async function parseExpensesFromText(
   text: string,
@@ -75,7 +76,20 @@ export async function parseExpensesFromText(
     return { expenses: [], needsClarification: true, clarificationMessage: 'Não consegui processar sua mensagem.' };
   }
 
-  const parsed = ParsedExpenseSchema.safeParse(JSON.parse(raw));
+  let jsonValue: unknown;
+  try {
+    jsonValue = JSON.parse(raw);
+  } catch {
+    console.error('[expense-parser] invalid JSON from model:', raw);
+    return { expenses: [], needsClarification: true, clarificationMessage: 'Não entendi o gasto. Pode repetir com mais detalhes?' };
+  }
+
+  // Alguns modelos (ex: Gemini) retornam o array de despesas diretamente
+  if (Array.isArray(jsonValue)) {
+    jsonValue = { expenses: jsonValue, needs_clarification: false };
+  }
+
+  const parsed = ParsedExpenseSchema.safeParse(jsonValue);
   if (!parsed.success) {
     console.error('[expense-parser] schema validation failed:', parsed.error);
     return { expenses: [], needsClarification: true, clarificationMessage: 'Não entendi o gasto. Pode repetir com mais detalhes?' };
