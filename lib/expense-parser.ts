@@ -157,27 +157,48 @@ async function transcribeAudioOpenAI(audioBuffer: Buffer, fileName: string): Pro
 }
 
 async function transcribeAudioGemini(audioBuffer: Buffer): Promise<string> {
-  // Gemini suporta áudio via chat completions com conteúdo multimodal base64
+  // A camada OpenAI-compatible do Gemini não suporta áudio via transcriptions nem input_audio.
+  // Usamos a API nativa do Gemini (REST) com inlineData para enviar o áudio diretamente.
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) throw new Error('GEMINI_API_KEY must be set');
+
+  const model = TRANSCRIPTION_MODEL;
   const base64 = audioBuffer.toString('base64');
 
-  const response = await openai.chat.completions.create({
-    model: TRANSCRIPTION_MODEL,
-    messages: [
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+
+  const body = {
+    contents: [
       {
-        role: 'user',
-        content: [
+        parts: [
           {
-            type: 'input_audio',
-            input_audio: { data: base64, format: 'ogg' },
-          } as unknown as { type: 'text'; text: string },
+            inlineData: {
+              mimeType: 'audio/ogg',
+              data: base64,
+            },
+          },
           {
-            type: 'text',
             text: 'Transcreva este áudio em português do Brasil. Retorne apenas o texto transcrito, sem explicações adicionais.',
           },
         ],
       },
     ],
+  };
+
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
   });
 
-  return response.choices[0]?.message?.content?.trim() ?? '';
+  if (!res.ok) {
+    const errText = await res.text();
+    throw new Error(`Gemini transcription failed ${res.status}: ${errText}`);
+  }
+
+  const data = await res.json() as {
+    candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
+  };
+
+  return data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? '';
 }
