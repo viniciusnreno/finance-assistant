@@ -134,6 +134,16 @@ export async function parseExpensesFromText(
 }
 
 export async function transcribeAudio(audioBuffer: Buffer, fileName: string): Promise<string> {
+  const provider = (process.env.AI_PROVIDER ?? 'openai').toLowerCase();
+
+  if (provider === 'gemini') {
+    return transcribeAudioGemini(audioBuffer);
+  }
+
+  return transcribeAudioOpenAI(audioBuffer, fileName);
+}
+
+async function transcribeAudioOpenAI(audioBuffer: Buffer, fileName: string): Promise<string> {
   const { toFile } = await import('openai');
   const file = await toFile(audioBuffer, fileName, { type: 'audio/ogg' });
 
@@ -144,4 +154,30 @@ export async function transcribeAudio(audioBuffer: Buffer, fileName: string): Pr
   });
 
   return transcription.text;
+}
+
+async function transcribeAudioGemini(audioBuffer: Buffer): Promise<string> {
+  // Gemini suporta áudio via chat completions com conteúdo multimodal base64
+  const base64 = audioBuffer.toString('base64');
+
+  const response = await openai.chat.completions.create({
+    model: TRANSCRIPTION_MODEL,
+    messages: [
+      {
+        role: 'user',
+        content: [
+          {
+            type: 'input_audio',
+            input_audio: { data: base64, format: 'ogg' },
+          } as unknown as { type: 'text'; text: string },
+          {
+            type: 'text',
+            text: 'Transcreva este áudio em português do Brasil. Retorne apenas o texto transcrito, sem explicações adicionais.',
+          },
+        ],
+      },
+    ],
+  });
+
+  return response.choices[0]?.message?.content?.trim() ?? '';
 }
