@@ -10,22 +10,39 @@ function todayInTimezone(): string {
   return format(now, 'yyyy-MM-dd', { timeZone: timezone });
 }
 
+const ExpenseItemSchema = z.object({
+  value: z.union([z.number(), z.string()]).transform((v) => Number(v)),
+  amount: z.union([z.number(), z.string()]).optional().transform((v) => v !== undefined ? Number(v) : undefined),
+  currency: z.string().default('BRL'),
+  category: z.enum(CATEGORIES).catch('outros'),
+  description: z.string().optional(),
+  name: z.string().optional(),
+  title: z.string().optional(),
+  item: z.string().optional(),
+  merchant: z.string().optional(),
+  store: z.string().optional(),
+  payment_method: z.string().optional(),
+  expense_date: z.string().optional(),
+  date: z.string().optional(),
+  confidence: z.number().min(0).max(1).default(0.9),
+}).transform((e) => ({
+  value: e.value ?? e.amount ?? 0,
+  currency: e.currency,
+  category: e.category,
+  description: e.description ?? e.name ?? e.title ?? e.item ?? 'Gasto',
+  merchant: e.merchant ?? e.store,
+  payment_method: e.payment_method,
+  expense_date: e.expense_date ?? e.date,
+  confidence: e.confidence,
+}));
+
 const ParsedExpenseSchema = z.object({
-  expenses: z.array(
-    z.object({
-      value: z.number().positive(),
-      currency: z.string().default('BRL'),
-      category: z.enum(CATEGORIES),
-      description: z.string(),
-      merchant: z.string().optional(),
-      payment_method: z.string().optional(),
-      expense_date: z.string().optional(),
-      confidence: z.number().min(0).max(1),
-    })
-  ),
-  needs_clarification: z.boolean(),
+  expenses: z.array(ExpenseItemSchema).default([]),
+  needs_clarification: z.boolean().default(false),
   clarification_message: z.string().optional(),
-});
+  needsClarification: z.boolean().optional(),
+  clarificationMessage: z.string().optional(),
+}).passthrough();
 
 const SYSTEM_PROMPT = `Você é um assistente financeiro pessoal brasileiro. Sua tarefa é extrair despesas de mensagens de texto.
 
@@ -89,21 +106,28 @@ export async function parseExpensesFromText(
     jsonValue = { expenses: jsonValue, needs_clarification: false };
   }
 
+  console.log('[expense-parser] raw json:', JSON.stringify(jsonValue).slice(0, 500));
+
   const parsed = ParsedExpenseSchema.safeParse(jsonValue);
   if (!parsed.success) {
     console.error('[expense-parser] schema validation failed:', parsed.error);
     return { expenses: [], needsClarification: true, clarificationMessage: 'Não entendi o gasto. Pode repetir com mais detalhes?' };
   }
 
-  const { expenses, needs_clarification, clarification_message } = parsed.data;
+  const obj = parsed.data as Record<string, unknown>;
+  const expenses = (obj.expenses as ReturnType<typeof ExpenseItemSchema.parse>[]) ?? [];
+  const needs_clarification = Boolean(obj.needs_clarification ?? obj.needsClarification ?? false);
+  const clarification_message = (obj.clarification_message ?? obj.clarificationMessage) as string | undefined;
 
   return {
-    expenses: expenses.map((e) => ({
-      ...e,
-      currency: e.currency ?? 'BRL',
-      expense_date: e.expense_date ?? today,
-      confidence: e.confidence,
-    })),
+    expenses: expenses
+      .filter((e) => e.value > 0)
+      .map((e) => ({
+        ...e,
+        currency: e.currency ?? 'BRL',
+        expense_date: e.expense_date ?? today,
+        confidence: e.confidence,
+      })),
     needsClarification: needs_clarification,
     clarificationMessage: clarification_message,
   };
