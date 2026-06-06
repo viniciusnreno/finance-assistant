@@ -1,76 +1,90 @@
-import { supabase } from '@/lib/supabase';
-import { CATEGORY_LABELS, type Category } from '@/types/expense';
-import { CategoryPieChart, DailyBarChart } from '@/components/charts';
-import { DashboardFilters } from '@/components/dashboard-filters';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import Link from 'next/link';
-import { format, subDays, startOfMonth, startOfYear, parseISO } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
-import { toZonedTime } from 'date-fns-tz';
-import { TrendingUp, Calendar, BarChart3, Tag, ArrowRight } from 'lucide-react';
+import { supabase } from "@/lib/supabase";
+import { CATEGORY_LABELS, type Category } from "@/types/expense";
+import { DashboardFilters } from "@/components/dashboard-filters";
+import { CategoryBarChart, DailyAreaChart } from "@/components/dashboard-charts";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import Link from "next/link";
+import { format, subDays, startOfMonth, startOfYear, startOfWeek, addDays, parseISO } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import { toZonedTime } from "date-fns-tz";
+import { TrendingUp, Calendar, BarChart3, Tag, ArrowRight } from "lucide-react";
 
-const timezone = process.env.APP_TIMEZONE ?? 'America/Sao_Paulo';
+const timezone = process.env.APP_TIMEZONE ?? "America/Sao_Paulo";
 
 function nowInTimezone() {
   return toZonedTime(new Date(), timezone);
 }
 
 function formatCurrency(value: number): string {
-  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+  return new Intl.NumberFormat("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  }).format(value);
 }
 
 function getDateRange(filter: string): { from: string; to: string } {
   const now = nowInTimezone();
-  const today = format(now, 'yyyy-MM-dd');
+  const today = format(now, "yyyy-MM-dd");
 
   switch (filter) {
-    case 'today':
+    case "today":
       return { from: today, to: today };
-    case '7d':
-      return { from: format(subDays(now, 6), 'yyyy-MM-dd'), to: today };
-    case 'month':
-      return { from: format(startOfMonth(now), 'yyyy-MM-dd'), to: today };
-    case 'year':
-      return { from: format(startOfYear(now), 'yyyy-MM-dd'), to: today };
+    case "7d":
+      return { from: format(subDays(now, 6), "yyyy-MM-dd"), to: today };
+    case "month":
+      return { from: format(startOfMonth(now), "yyyy-MM-dd"), to: today };
+    case "year":
+      return { from: format(startOfYear(now), "yyyy-MM-dd"), to: today };
     default:
-      return { from: format(subDays(now, 29), 'yyyy-MM-dd'), to: today };
+      return { from: format(subDays(now, 29), "yyyy-MM-dd"), to: today };
   }
 }
 
 async function getStats(from: string, to: string) {
   const now = nowInTimezone();
-  const today = format(now, 'yyyy-MM-dd');
-  const monthStart = format(startOfMonth(now), 'yyyy-MM-dd');
+  const today = format(now, "yyyy-MM-dd");
+  const monthStart = format(startOfMonth(now), "yyyy-MM-dd");
+  const weekStart = format(startOfWeek(now, { weekStartsOn: 1 }), "yyyy-MM-dd");
+  const weekEnd = format(addDays(startOfWeek(now, { weekStartsOn: 1 }), 6), "yyyy-MM-dd");
 
-  const [todayRes, monthRes, periodRes, recentRes] = await Promise.all([
+  const [todayRes, monthRes, periodRes, weekRes, recentRes] = await Promise.all([
     supabase
-      .from('expenses')
-      .select('value')
-      .is('deleted_at', null)
-      .eq('expense_date', today),
+      .from("expenses")
+      .select("value")
+      .is("deleted_at", null)
+      .eq("expense_date", today),
     supabase
-      .from('expenses')
-      .select('value, expense_date, category')
-      .is('deleted_at', null)
-      .gte('expense_date', monthStart)
-      .lte('expense_date', today),
+      .from("expenses")
+      .select("value, expense_date, category")
+      .is("deleted_at", null)
+      .gte("expense_date", monthStart)
+      .lte("expense_date", today),
     supabase
-      .from('expenses')
-      .select('value, category, expense_date')
-      .is('deleted_at', null)
-      .gte('expense_date', from)
-      .lte('expense_date', to),
+      .from("expenses")
+      .select("value, category, expense_date")
+      .is("deleted_at", null)
+      .gte("expense_date", from)
+      .lte("expense_date", to),
     supabase
-      .from('expenses')
-      .select('*')
-      .is('deleted_at', null)
-      .order('expense_date', { ascending: false })
-      .order('created_at', { ascending: false })
+      .from("expenses")
+      .select("value, expense_date")
+      .is("deleted_at", null)
+      .gte("expense_date", weekStart)
+      .lte("expense_date", weekEnd),
+    supabase
+      .from("expenses")
+      .select("*")
+      .is("deleted_at", null)
+      .order("expense_date", { ascending: false })
+      .order("created_at", { ascending: false })
       .limit(10),
   ]);
 
-  const todayTotal = (todayRes.data ?? []).reduce((sum, e) => sum + Number(e.value), 0);
+  const todayTotal = (todayRes.data ?? []).reduce(
+    (sum, e) => sum + Number(e.value),
+    0,
+  );
   const monthExpenses = monthRes.data ?? [];
   const monthTotal = monthExpenses.reduce((sum, e) => sum + Number(e.value), 0);
 
@@ -81,13 +95,17 @@ async function getStats(from: string, to: string) {
 
   const categoryTotals: Record<string, number> = {};
   monthExpenses.forEach((e) => {
-    categoryTotals[e.category] = (categoryTotals[e.category] ?? 0) + Number(e.value);
+    categoryTotals[e.category] =
+      (categoryTotals[e.category] ?? 0) + Number(e.value);
   });
-  const topCategory = Object.entries(categoryTotals).sort((a, b) => b[1] - a[1])[0];
+  const topCategory = Object.entries(categoryTotals).sort(
+    (a, b) => b[1] - a[1],
+  )[0];
 
   const periodByCategory: Record<string, number> = {};
   periodExpenses.forEach((e) => {
-    periodByCategory[e.category] = (periodByCategory[e.category] ?? 0) + Number(e.value);
+    periodByCategory[e.category] =
+      (periodByCategory[e.category] ?? 0) + Number(e.value);
   });
   const categoryChartData = Object.entries(periodByCategory)
     .map(([category, total]) => ({
@@ -97,16 +115,24 @@ async function getStats(from: string, to: string) {
     }))
     .sort((a, b) => b.total - a.total);
 
-  const dailyTotals: Record<string, number> = {};
-  periodExpenses.forEach((e) => {
-    dailyTotals[e.expense_date] = (dailyTotals[e.expense_date] ?? 0) + Number(e.value);
+  const weekExpenses = weekRes.data ?? [];
+  const weeklyTotals: Record<string, number> = {};
+  weekExpenses.forEach((e) => {
+    weeklyTotals[e.expense_date] =
+      (weeklyTotals[e.expense_date] ?? 0) + Number(e.value);
   });
-  const dailyChartData = Object.entries(dailyTotals)
-    .sort((a, b) => a[0].localeCompare(b[0]))
-    .map(([date, total]) => ({
-      date: format(parseISO(date), 'dd/MM', { locale: ptBR }),
-      total,
-    }));
+
+  const DAY_LABELS = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"];
+  const weekMonday = startOfWeek(now, { weekStartsOn: 1 });
+  const dailyChartData = Array.from({ length: 7 }, (_, i) => {
+    const day = addDays(weekMonday, i);
+    const dateKey = format(day, "yyyy-MM-dd");
+    return {
+      date: DAY_LABELS[i],
+      total: weeklyTotals[dateKey] ?? 0,
+      isToday: dateKey === today,
+    };
+  });
 
   return {
     todayTotal,
@@ -126,22 +152,22 @@ interface PageProps {
 }
 
 export default async function DashboardPage({ searchParams }: PageProps) {
-  const { filter = '30d' } = await searchParams;
+  const { filter = "30d" } = await searchParams;
   const { from, to } = getDateRange(filter);
   const stats = await getStats(from, to);
 
   const filterLabels: Record<string, string> = {
-    today: 'Hoje',
-    '7d': '7 dias',
-    '30d': '30 dias',
-    month: 'Mês atual',
-    year: 'Ano atual',
+    today: "Hoje",
+    "7d": "7 dias",
+    "30d": "30 dias",
+    month: "Mês atual",
+    year: "Ano atual",
   };
 
   const periodLabel =
     from === to
       ? format(parseISO(from), "dd 'de' MMMM", { locale: ptBR })
-      : `${format(parseISO(from), 'dd/MM/yyyy')} — ${format(parseISO(to), 'dd/MM/yyyy')}`;
+      : `${format(parseISO(from), "dd/MM/yyyy")} — ${format(parseISO(to), "dd/MM/yyyy")}`;
 
   return (
     <div className="space-y-6">
@@ -176,9 +202,13 @@ export default async function DashboardPage({ searchParams }: PageProps) {
           value={
             stats.topCategory
               ? CATEGORY_LABELS[stats.topCategory.category]
-              : '—'
+              : "—"
           }
-          sub={stats.topCategory ? formatCurrency(stats.topCategory.total) : undefined}
+          sub={
+            stats.topCategory
+              ? formatCurrency(stats.topCategory.total)
+              : undefined
+          }
           icon={<Tag className="h-4 w-4" />}
         />
       </div>
@@ -191,8 +221,8 @@ export default async function DashboardPage({ searchParams }: PageProps) {
               Por Categoria
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <CategoryPieChart data={stats.categoryChartData} />
+          <CardContent className="pt-0">
+            <CategoryBarChart data={stats.categoryChartData} />
           </CardContent>
         </Card>
         <Card>
@@ -201,8 +231,8 @@ export default async function DashboardPage({ searchParams }: PageProps) {
               Evolução Diária
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <DailyBarChart data={stats.dailyChartData} />
+          <CardContent className="pt-0">
+            <DailyAreaChart data={stats.dailyChartData} />
           </CardContent>
         </Card>
       </div>
@@ -231,12 +261,21 @@ export default async function DashboardPage({ searchParams }: PageProps) {
           ) : (
             <div className="divide-y divide-border">
               {stats.recentExpenses.map((expense) => (
-                <div key={expense.id} className="py-3 flex items-center justify-between gap-4">
+                <div
+                  key={expense.id}
+                  className="py-3 flex items-center justify-between gap-4"
+                >
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium truncate">{expense.description}</p>
+                    <p className="text-sm font-medium truncate">
+                      {expense.description}
+                    </p>
                     <div className="flex items-center gap-2 mt-0.5">
-                      <Badge variant="secondary" className="text-xs h-5 px-1.5 font-normal">
-                        {CATEGORY_LABELS[expense.category as Category] ?? expense.category}
+                      <Badge
+                        variant="secondary"
+                        className="text-xs h-5 px-1.5 font-normal"
+                      >
+                        {CATEGORY_LABELS[expense.category as Category] ??
+                          expense.category}
                       </Badge>
                       {expense.merchant && (
                         <span className="text-xs text-muted-foreground truncate">
@@ -244,7 +283,7 @@ export default async function DashboardPage({ searchParams }: PageProps) {
                         </span>
                       )}
                       <span className="text-xs text-muted-foreground whitespace-nowrap">
-                        {format(parseISO(expense.expense_date), 'dd/MM/yy')}
+                        {format(parseISO(expense.expense_date), "dd/MM/yy")}
                       </span>
                     </div>
                   </div>
@@ -275,11 +314,13 @@ function StatCard({
   highlight?: boolean;
 }) {
   return (
-    <Card className={highlight ? 'border-primary/40 bg-primary/5' : ''}>
+    <Card className={highlight ? "border-primary/40 bg-primary/5" : ""}>
       <CardContent className="p-4">
         <div className="flex items-center justify-between mb-3">
           <p className="text-xs font-medium text-muted-foreground">{title}</p>
-          <span className={`${highlight ? 'text-primary' : 'text-muted-foreground'}`}>
+          <span
+            className={`${highlight ? "text-primary" : "text-muted-foreground"}`}
+          >
             {icon}
           </span>
         </div>

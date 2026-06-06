@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition, useCallback } from 'react';
+import { useState, useTransition, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { CATEGORIES, CATEGORY_LABELS, type Category, type Expense } from '@/types/expense';
 import { format, parseISO } from 'date-fns';
@@ -114,6 +114,14 @@ export function TransactionsClient({
   const [error, setError] = useState('');
 
   const [localFilters, setLocalFilters] = useState(filters);
+
+  useEffect(() => {
+    setExpenses(initialExpenses);
+  }, [initialExpenses]);
+
+  useEffect(() => {
+    setLocalFilters(filters);
+  }, [filters]);
 
   const applyFilters = useCallback(
     (newFilters: Partial<Filters>) => {
