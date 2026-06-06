@@ -1,11 +1,28 @@
 import { supabase } from "@/lib/supabase";
-import { CATEGORY_LABELS, PAYMENT_METHOD_LABELS, type Category, type PaymentMethod } from "@/types/expense";
+import {
+  CATEGORY_LABELS,
+  PAYMENT_METHOD_LABELS,
+  type Category,
+  type PaymentMethod,
+} from "@/types/expense";
 import { DashboardFilters } from "@/components/dashboard-filters";
-import { CategoryBarChart, DailyAreaChart, PaymentMethodDonutChart } from "@/components/dashboard-charts";
+import {
+  CategoryBarChart,
+  DailyAreaChart,
+  PaymentMethodDonutChart,
+} from "@/components/dashboard-charts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
-import { format, subDays, startOfMonth, startOfYear, startOfWeek, addDays, parseISO } from "date-fns";
+import {
+  format,
+  subDays,
+  startOfMonth,
+  startOfYear,
+  startOfWeek,
+  addDays,
+  parseISO,
+} from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toZonedTime } from "date-fns-tz";
 import { TrendingUp, Calendar, BarChart3, Tag, ArrowRight } from "lucide-react";
@@ -46,40 +63,45 @@ async function getStats(from: string, to: string) {
   const today = format(now, "yyyy-MM-dd");
   const monthStart = format(startOfMonth(now), "yyyy-MM-dd");
   const weekStart = format(startOfWeek(now, { weekStartsOn: 1 }), "yyyy-MM-dd");
-  const weekEnd = format(addDays(startOfWeek(now, { weekStartsOn: 1 }), 6), "yyyy-MM-dd");
+  const weekEnd = format(
+    addDays(startOfWeek(now, { weekStartsOn: 1 }), 6),
+    "yyyy-MM-dd",
+  );
 
-  const [todayRes, monthRes, periodRes, weekRes, recentRes] = await Promise.all([
-    supabase
-      .from("expenses")
-      .select("value")
-      .is("deleted_at", null)
-      .eq("expense_date", today),
-    supabase
-      .from("expenses")
-      .select("value, expense_date, category")
-      .is("deleted_at", null)
-      .gte("expense_date", monthStart)
-      .lte("expense_date", today),
-    supabase
-      .from("expenses")
-      .select("value, category, expense_date, payment_method")
-      .is("deleted_at", null)
-      .gte("expense_date", from)
-      .lte("expense_date", to),
-    supabase
-      .from("expenses")
-      .select("value, expense_date")
-      .is("deleted_at", null)
-      .gte("expense_date", weekStart)
-      .lte("expense_date", weekEnd),
-    supabase
-      .from("expenses")
-      .select("*")
-      .is("deleted_at", null)
-      .order("expense_date", { ascending: false })
-      .order("created_at", { ascending: false })
-      .limit(10),
-  ]);
+  const [todayRes, monthRes, periodRes, weekRes, recentRes] = await Promise.all(
+    [
+      supabase
+        .from("expenses")
+        .select("value")
+        .is("deleted_at", null)
+        .eq("expense_date", today),
+      supabase
+        .from("expenses")
+        .select("value, expense_date, category")
+        .is("deleted_at", null)
+        .gte("expense_date", monthStart)
+        .lte("expense_date", today),
+      supabase
+        .from("expenses")
+        .select("value, category, expense_date, payment_method")
+        .is("deleted_at", null)
+        .gte("expense_date", from)
+        .lte("expense_date", to),
+      supabase
+        .from("expenses")
+        .select("value, expense_date")
+        .is("deleted_at", null)
+        .gte("expense_date", weekStart)
+        .lte("expense_date", weekEnd),
+      supabase
+        .from("expenses")
+        .select("*")
+        .is("deleted_at", null)
+        .order("expense_date", { ascending: false })
+        .order("created_at", { ascending: false })
+        .limit(10),
+    ],
+  );
 
   const todayTotal = (todayRes.data ?? []).reduce(
     (sum, e) => sum + Number(e.value),
@@ -117,15 +139,18 @@ async function getStats(from: string, to: string) {
 
   const periodByPaymentMethod: Record<string, number> = {};
   periodExpenses.forEach((e) => {
-    const key = (e as { payment_method?: string | null }).payment_method || "sem_metodo";
-    periodByPaymentMethod[key] = (periodByPaymentMethod[key] ?? 0) + Number(e.value);
+    const key =
+      (e as { payment_method?: string | null }).payment_method || "sem_metodo";
+    periodByPaymentMethod[key] =
+      (periodByPaymentMethod[key] ?? 0) + Number(e.value);
   });
   const paymentMethodChartData = Object.entries(periodByPaymentMethod)
     .map(([method, total]) => ({
       method,
-      label: method === "sem_metodo"
-        ? "Sem método"
-        : (PAYMENT_METHOD_LABELS[method as PaymentMethod] ?? method),
+      label:
+        method === "sem_metodo"
+          ? "Sem método"
+          : (PAYMENT_METHOD_LABELS[method as PaymentMethod] ?? method),
       total,
     }))
     .sort((a, b) => b.total - a.total);
@@ -241,7 +266,7 @@ export default async function DashboardPage({ searchParams }: PageProps) {
             <CategoryBarChart data={stats.categoryChartData} />
           </CardContent>
         </Card>
-        <Card>
+        {/* <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Evolução Diária
@@ -250,8 +275,8 @@ export default async function DashboardPage({ searchParams }: PageProps) {
           <CardContent className="pt-0">
             <DailyAreaChart data={stats.dailyChartData} />
           </CardContent>
-        </Card>
-        <Card className="lg:col-span-2">
+        </Card> */}
+        <Card className="">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Por Método de Pagamento
