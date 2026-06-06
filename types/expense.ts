@@ -1,3 +1,19 @@
+export const PAYMENT_METHODS = [
+  'caju',
+  'paicard',
+  'nubank_pix',
+  'nubank_debito',
+] as const;
+
+export type PaymentMethod = (typeof PAYMENT_METHODS)[number];
+
+export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
+  caju: 'Caju (VR)',
+  paicard: 'Paicard',
+  nubank_pix: 'Nubank PIX',
+  nubank_debito: 'Nubank Débito',
+};
+
 export const CATEGORIES = [
   'alimentacao',
   'mercado',
@@ -5,12 +21,13 @@ export const CATEGORIES = [
   'combustivel',
   'saude',
   'educacao',
-  'lazer',
+  'roles',
+  'consumiveis',
   'casa',
   'assinaturas',
   'contas',
-  'familia',
   'viagem',
+  'presentes',
   'outros',
 ] as const;
 
@@ -23,12 +40,13 @@ export const CATEGORY_LABELS: Record<Category, string> = {
   combustivel: 'Combustível',
   saude: 'Saúde',
   educacao: 'Educação',
-  lazer: 'Lazer',
+  roles: 'Roles',
+  consumiveis: 'Consumíveis',
   casa: 'Casa',
   assinaturas: 'Assinaturas',
   contas: 'Contas',
-  familia: 'Família',
   viagem: 'Viagem',
+  presentes: 'Presentes',
   outros: 'Outros',
 };
 
@@ -61,7 +79,7 @@ export interface ParsedExpense {
   category: Category;
   description: string;
   merchant?: string;
-  payment_method?: string;
+  payment_method?: PaymentMethod;
   expense_date?: string;
   confidence: number;
 }

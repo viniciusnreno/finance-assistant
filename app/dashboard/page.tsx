@@ -1,7 +1,7 @@
 import { supabase } from "@/lib/supabase";
-import { CATEGORY_LABELS, type Category } from "@/types/expense";
+import { CATEGORY_LABELS, PAYMENT_METHOD_LABELS, type Category, type PaymentMethod } from "@/types/expense";
 import { DashboardFilters } from "@/components/dashboard-filters";
-import { CategoryBarChart, DailyAreaChart } from "@/components/dashboard-charts";
+import { CategoryBarChart, DailyAreaChart, PaymentMethodDonutChart } from "@/components/dashboard-charts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
@@ -62,7 +62,7 @@ async function getStats(from: string, to: string) {
       .lte("expense_date", today),
     supabase
       .from("expenses")
-      .select("value, category, expense_date")
+      .select("value, category, expense_date, payment_method")
       .is("deleted_at", null)
       .gte("expense_date", from)
       .lte("expense_date", to),
@@ -115,6 +115,21 @@ async function getStats(from: string, to: string) {
     }))
     .sort((a, b) => b.total - a.total);
 
+  const periodByPaymentMethod: Record<string, number> = {};
+  periodExpenses.forEach((e) => {
+    const key = (e as { payment_method?: string | null }).payment_method || "sem_metodo";
+    periodByPaymentMethod[key] = (periodByPaymentMethod[key] ?? 0) + Number(e.value);
+  });
+  const paymentMethodChartData = Object.entries(periodByPaymentMethod)
+    .map(([method, total]) => ({
+      method,
+      label: method === "sem_metodo"
+        ? "Sem método"
+        : (PAYMENT_METHOD_LABELS[method as PaymentMethod] ?? method),
+      total,
+    }))
+    .sort((a, b) => b.total - a.total);
+
   const weekExpenses = weekRes.data ?? [];
   const weeklyTotals: Record<string, number> = {};
   weekExpenses.forEach((e) => {
@@ -143,6 +158,7 @@ async function getStats(from: string, to: string) {
       : null,
     categoryChartData,
     dailyChartData,
+    paymentMethodChartData,
     recentExpenses: recentRes.data ?? [],
   };
 }
@@ -233,6 +249,16 @@ export default async function DashboardPage({ searchParams }: PageProps) {
           </CardHeader>
           <CardContent className="pt-0">
             <DailyAreaChart data={stats.dailyChartData} />
+          </CardContent>
+        </Card>
+        <Card className="lg:col-span-2">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Por Método de Pagamento
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-0">
+            <PaymentMethodDonutChart data={stats.paymentMethodChartData} />
           </CardContent>
         </Card>
       </div>

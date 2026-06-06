@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { openai, EXPENSE_MODEL, TRANSCRIPTION_MODEL } from './openai';
-import { CATEGORIES, type ParsedExpense } from '@/types/expense';
+import { CATEGORIES, PAYMENT_METHODS, type ParsedExpense } from '@/types/expense';
 import { toZonedTime, format } from 'date-fns-tz';
 
 const timezone = process.env.APP_TIMEZONE ?? 'America/Sao_Paulo';
@@ -21,7 +21,7 @@ const ExpenseItemSchema = z.object({
   item: z.string().optional(),
   merchant: z.string().optional(),
   store: z.string().optional(),
-  payment_method: z.string().optional(),
+  payment_method: z.enum(PAYMENT_METHODS).optional().catch(undefined),
   expense_date: z.string().optional(),
   date: z.string().optional(),
   confidence: z.number().min(0).max(1).default(0.9),
@@ -49,17 +49,24 @@ const SYSTEM_PROMPT = `Você é um assistente financeiro pessoal brasileiro. Sua
 Categorias disponíveis:
 - alimentacao: restaurantes, lanchonetes, delivery, refeições
 - mercado: supermercado, feira, compras de alimentos
-- transporte: uber, táxi, ônibus, metrô, passagens
+- transporte: itacar, coopercar, uber, 99, passagem, blablacar, ônibus, metrô, táxi
 - combustivel: gasolina, álcool, diesel, posto de combustível
 - saude: farmácia, médico, hospital, exames, plano de saúde
 - educacao: cursos, livros, escola, faculdade, mensalidades
-- lazer: cinema, streaming, jogos, hobbies, entretenimento
+- roles: ingresso de festa, balada, eventos, shows, festas
+- consumiveis: tabaco, seda, filtro, cigarro, bebida alcoólica, cerveja, cachaça, vinho
 - casa: aluguel, condomínio, reforma, móveis, eletrodomésticos
 - assinaturas: netflix, spotify, software, revistas, anuidades
 - contas: luz, água, internet, telefone, gás
-- familia: filhos, cônjuge, pais, presentes para família
 - viagem: hotel, passagem aérea, passeios, turismo
+- presentes: presentes para pessoas, gift, mimo
 - outros: qualquer coisa que não se encaixa nas anteriores
+
+Meios de pagamento (campo opcional, use apenas os valores abaixo se mencionados):
+- caju: Caju, VR, vale refeição, vale alimentação
+- paicard: paicard, cartão do pai, cartão pai
+- nubank_pix: nubank pix, pix nubank, pix
+- nubank_debito: nubank débito, nubank debito, débito nubank, débito
 
 Regras:
 1. Extraia TODAS as despesas mencionadas na mensagem.
@@ -69,7 +76,8 @@ Regras:
 5. Confidence é um número entre 0 e 1 indicando sua certeza na extração.
 6. Valores em reais não precisam do símbolo R$, apenas o número.
 7. Sempre responda em JSON válido conforme o schema.
-8. A resposta DEVE ser um objeto JSON com as chaves "expenses", "needs_clarification" e opcionalmente "clarification_message". NUNCA retorne um array na raiz.`;
+8. A resposta DEVE ser um objeto JSON com as chaves "expenses", "needs_clarification" e opcionalmente "clarification_message". NUNCA retorne um array na raiz.
+9. O campo payment_method é opcional. Só preencha se o meio de pagamento for claramente identificado na mensagem. Use exatamente um dos valores: caju, paicard, nubank_pix, nubank_debito.`;
 
 export async function parseExpensesFromText(
   text: string,

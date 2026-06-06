@@ -5,6 +5,9 @@ import {
   BarChart,
   Area,
   AreaChart,
+  Pie,
+  PieChart,
+  Cell,
   CartesianGrid,
   XAxis,
   YAxis,
@@ -14,11 +17,19 @@ import {
   ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
+  ChartLegend,
+  ChartLegendContent,
   type ChartConfig,
 } from "@/components/ui/chart";
 
 interface CategoryData {
   category: string;
+  label: string;
+  total: number;
+}
+
+interface PaymentMethodData {
+  method: string;
   label: string;
   total: number;
 }
@@ -50,6 +61,14 @@ const dailyChartConfig = {
     color: "hsl(var(--chart-2))",
   },
 } satisfies ChartConfig;
+
+const PAYMENT_METHOD_COLORS: Record<string, string> = {
+  caju: "hsl(var(--chart-1))",
+  paicard: "hsl(var(--chart-2))",
+  nubank_pix: "hsl(var(--chart-3))",
+  nubank_debito: "hsl(var(--chart-4))",
+  sem_metodo: "hsl(var(--chart-5))",
+};
 
 export function CategoryBarChart({ data }: { data: CategoryData[] }) {
   if (data.length === 0) {
@@ -93,6 +112,54 @@ export function CategoryBarChart({ data }: { data: CategoryData[] }) {
         />
         <Bar dataKey="total" fill="var(--color-total)" radius={4} />
       </BarChart>
+    </ChartContainer>
+  );
+}
+
+export function PaymentMethodDonutChart({ data }: { data: PaymentMethodData[] }) {
+  if (data.length === 0) {
+    return (
+      <div className="flex h-[200px] items-center justify-center text-sm text-muted-foreground">
+        Nenhum dado no período
+      </div>
+    );
+  }
+
+  const chartConfig = Object.fromEntries(
+    data.map((d) => [
+      d.method,
+      { label: d.label, color: PAYMENT_METHOD_COLORS[d.method] ?? "hsl(var(--chart-5))" },
+    ]),
+  ) satisfies ChartConfig;
+
+  return (
+    <ChartContainer config={chartConfig} className="h-[220px] w-full">
+      <PieChart>
+        <Pie
+          data={data}
+          dataKey="total"
+          nameKey="method"
+          innerRadius="55%"
+          outerRadius="80%"
+          paddingAngle={2}
+        >
+          {data.map((entry) => (
+            <Cell
+              key={entry.method}
+              fill={PAYMENT_METHOD_COLORS[entry.method] ?? "hsl(var(--chart-5))"}
+            />
+          ))}
+        </Pie>
+        <ChartTooltip
+          content={
+            <ChartTooltipContent
+              formatter={(value) => formatCurrency(Number(value))}
+              nameKey="method"
+            />
+          }
+        />
+        <ChartLegend content={<ChartLegendContent nameKey="method" />} />
+      </PieChart>
     </ChartContainer>
   );
 }
@@ -167,7 +234,7 @@ export function DailyAreaChart({ data }: { data: DailyData[] }) {
           dataKey="total"
           stroke="var(--color-total)"
           strokeWidth={2}
-          fill="url(#gradientTotal)"
+          fill="var(--color-total)"
           dot={false}
           activeDot={{ r: 4 }}
         />

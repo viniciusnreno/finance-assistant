@@ -2,7 +2,7 @@
 
 import { useState, useTransition, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { CATEGORIES, CATEGORY_LABELS, type Category, type Expense } from '@/types/expense';
+import { CATEGORIES, CATEGORY_LABELS, PAYMENT_METHODS, PAYMENT_METHOD_LABELS, type Category, type PaymentMethod, type Expense } from '@/types/expense';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Button, buttonVariants } from '@/components/ui/button';
@@ -55,12 +55,13 @@ const CATEGORY_BADGE_COLORS: Record<string, string> = {
   combustivel: 'bg-yellow-500/15 text-yellow-400 border-yellow-500/25',
   saude: 'bg-red-500/15 text-red-400 border-red-500/25',
   educacao: 'bg-violet-500/15 text-violet-400 border-violet-500/25',
-  lazer: 'bg-pink-500/15 text-pink-400 border-pink-500/25',
+  roles: 'bg-pink-500/15 text-pink-400 border-pink-500/25',
+  consumiveis: 'bg-purple-500/15 text-purple-400 border-purple-500/25',
   casa: 'bg-teal-500/15 text-teal-400 border-teal-500/25',
   assinaturas: 'bg-indigo-500/15 text-indigo-400 border-indigo-500/25',
   contas: 'bg-amber-500/15 text-amber-400 border-amber-500/25',
-  familia: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/25',
   viagem: 'bg-cyan-500/15 text-cyan-400 border-cyan-500/25',
+  presentes: 'bg-rose-500/15 text-rose-400 border-rose-500/25',
   outros: 'bg-gray-500/15 text-gray-400 border-gray-500/25',
 };
 
@@ -376,7 +377,9 @@ export function TransactionsClient({
                   <TableCell>
                     <p className="text-sm font-medium truncate max-w-52">{expense.description}</p>
                     {expense.payment_method && (
-                      <p className="text-xs text-muted-foreground">{expense.payment_method}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {PAYMENT_METHOD_LABELS[expense.payment_method as PaymentMethod] ?? expense.payment_method}
+                      </p>
                     )}
                   </TableCell>
                   <TableCell>
@@ -544,14 +547,24 @@ export function TransactionsClient({
 
               <div className="space-y-1.5">
                 <Label htmlFor="edit-payment">Forma de pagamento</Label>
-                <Input
-                  id="edit-payment"
-                  value={editState.payment_method}
-                  onChange={(e) =>
-                    setEditState((s) => s && { ...s, payment_method: e.target.value })
+                <Select
+                  value={editState.payment_method || '__none__'}
+                  onValueChange={(v) =>
+                    setEditState((s) => s && { ...s, payment_method: !v || v === '__none__' ? '' : v })
                   }
-                  placeholder="Opcional"
-                />
+                >
+                  <SelectTrigger id="edit-payment">
+                    <SelectValue placeholder="Opcional" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">Nenhum</SelectItem>
+                    {PAYMENT_METHODS.map((pm) => (
+                      <SelectItem key={pm} value={pm}>
+                        {PAYMENT_METHOD_LABELS[pm]}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               {error && (
