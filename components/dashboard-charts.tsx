@@ -102,10 +102,7 @@ export function DailyAreaChart({ data }: { data: DailyData[] }) {
 
   return (
     <ChartContainer config={dailyChartConfig} className="h-[220px] w-full">
-      <AreaChart
-        data={data}
-        margin={{ left: 0, right: 8, top: 4, bottom: 4 }}
-      >
+      <AreaChart data={data} margin={{ left: 0, right: 8, top: 4, bottom: 4 }}>
         <defs>
           <linearGradient id="gradientTotal" x1="0" y1="0" x2="0" y2="1">
             <stop
@@ -128,7 +125,7 @@ export function DailyAreaChart({ data }: { data: DailyData[] }) {
           tick={({ x, y, payload }) => (
             <text
               x={x}
-              y={y + 12}
+              y={Number(y) + 12}
               textAnchor="middle"
               fontSize={11}
               fontWeight={payload.value === todayLabel ? 700 : 400}
