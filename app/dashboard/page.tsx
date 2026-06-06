@@ -2,10 +2,13 @@ import { supabase } from '@/lib/supabase';
 import { CATEGORY_LABELS, type Category } from '@/types/expense';
 import { CategoryPieChart, DailyBarChart } from '@/components/charts';
 import { DashboardFilters } from '@/components/dashboard-filters';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import { format, subDays, startOfMonth, startOfYear, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { toZonedTime } from 'date-fns-tz';
+import { TrendingUp, Calendar, BarChart3, Tag, ArrowRight } from 'lucide-react';
 
 const timezone = process.env.APP_TIMEZONE ?? 'America/Sao_Paulo';
 
@@ -76,14 +79,12 @@ async function getStats(from: string, to: string) {
 
   const periodExpenses = periodRes.data ?? [];
 
-  // Categoria mais gastada no mês
   const categoryTotals: Record<string, number> = {};
   monthExpenses.forEach((e) => {
     categoryTotals[e.category] = (categoryTotals[e.category] ?? 0) + Number(e.value);
   });
   const topCategory = Object.entries(categoryTotals).sort((a, b) => b[1] - a[1])[0];
 
-  // Dados para gráfico de pizza (por categoria no período)
   const periodByCategory: Record<string, number> = {};
   periodExpenses.forEach((e) => {
     periodByCategory[e.category] = (periodByCategory[e.category] ?? 0) + Number(e.value);
@@ -96,7 +97,6 @@ async function getStats(from: string, to: string) {
     }))
     .sort((a, b) => b.total - a.total);
 
-  // Dados para gráfico diário (últimos 30 dias ou período)
   const dailyTotals: Record<string, number> = {};
   periodExpenses.forEach((e) => {
     dailyTotals[e.expense_date] = (dailyTotals[e.expense_date] ?? 0) + Number(e.value);
@@ -138,14 +138,17 @@ export default async function DashboardPage({ searchParams }: PageProps) {
     year: 'Ano atual',
   };
 
+  const periodLabel =
+    from === to
+      ? format(parseISO(from), "dd 'de' MMMM", { locale: ptBR })
+      : `${format(parseISO(from), 'dd/MM/yyyy')} — ${format(parseISO(to), 'dd/MM/yyyy')}`;
+
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold">Visão Geral</h1>
-          <p className="text-gray-400 text-sm mt-0.5">
-            {from === to ? `Data: ${format(parseISO(from), "dd 'de' MMMM", { locale: ptBR })}` : `${format(parseISO(from), 'dd/MM/yyyy')} — ${format(parseISO(to), 'dd/MM/yyyy')}`}
-          </p>
+          <h1 className="text-2xl font-bold tracking-tight">Visão Geral</h1>
+          <p className="text-muted-foreground text-sm mt-1">{periodLabel}</p>
         </div>
         <DashboardFilters current={filter} labels={filterLabels} />
       </div>
@@ -155,18 +158,18 @@ export default async function DashboardPage({ searchParams }: PageProps) {
         <StatCard
           title="Gasto Hoje"
           value={formatCurrency(stats.todayTotal)}
-          icon="📅"
+          icon={<Calendar className="h-4 w-4" />}
           highlight={stats.todayTotal > 0}
         />
         <StatCard
           title="Gasto no Mês"
           value={formatCurrency(stats.monthTotal)}
-          icon="📆"
+          icon={<TrendingUp className="h-4 w-4" />}
         />
         <StatCard
           title="Média Diária"
           value={formatCurrency(stats.dailyAvg)}
-          icon="📊"
+          icon={<BarChart3 className="h-4 w-4" />}
         />
         <StatCard
           title="Maior Categoria"
@@ -176,56 +179,84 @@ export default async function DashboardPage({ searchParams }: PageProps) {
               : '—'
           }
           sub={stats.topCategory ? formatCurrency(stats.topCategory.total) : undefined}
-          icon="🏷️"
+          icon={<Tag className="h-4 w-4" />}
         />
       </div>
 
       {/* Gráficos */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-gray-900 border border-gray-800 rounded-xl p-6">
-          <h2 className="text-sm font-semibold text-gray-300 mb-4">Por Categoria</h2>
-          <CategoryPieChart data={stats.categoryChartData} />
-        </div>
-        <div className="bg-gray-900 border border-gray-800 rounded-xl p-6">
-          <h2 className="text-sm font-semibold text-gray-300 mb-4">Evolução Diária</h2>
-          <DailyBarChart data={stats.dailyChartData} />
-        </div>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Por Categoria
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <CategoryPieChart data={stats.categoryChartData} />
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Evolução Diária
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <DailyBarChart data={stats.dailyChartData} />
+          </CardContent>
+        </Card>
       </div>
 
       {/* Últimos gastos */}
-      <div className="bg-gray-900 border border-gray-800 rounded-xl">
-        <div className="px-6 py-4 border-b border-gray-800 flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-gray-300">Últimos Gastos</h2>
-          <Link
-            href="/dashboard/transactions"
-            className="text-xs text-emerald-400 hover:text-emerald-300 transition-colors"
-          >
-            Ver todos →
-          </Link>
-        </div>
-        <div className="divide-y divide-gray-800">
+      <Card>
+        <CardHeader className="pb-0">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Últimos Gastos
+            </CardTitle>
+            <Link
+              href="/dashboard/transactions"
+              className="flex items-center gap-1 text-xs text-primary hover:text-primary/80 transition-colors"
+            >
+              Ver todos
+              <ArrowRight className="h-3 w-3" />
+            </Link>
+          </div>
+        </CardHeader>
+        <CardContent className="pt-2">
           {stats.recentExpenses.length === 0 ? (
-            <p className="px-6 py-8 text-center text-gray-500 text-sm">Nenhum gasto registrado ainda.</p>
+            <p className="py-8 text-center text-muted-foreground text-sm">
+              Nenhum gasto registrado ainda.
+            </p>
           ) : (
-            stats.recentExpenses.map((expense) => (
-              <div key={expense.id} className="px-6 py-3 flex items-center justify-between gap-4">
-                <div className="min-w-0">
-                  <p className="text-sm font-medium text-white truncate">{expense.description}</p>
-                  <p className="text-xs text-gray-400 mt-0.5">
-                    {CATEGORY_LABELS[expense.category as Category] ?? expense.category}
-                    {expense.merchant && ` · ${expense.merchant}`}
-                    {' · '}
-                    {format(parseISO(expense.expense_date), "dd/MM/yy")}
-                  </p>
+            <div className="divide-y divide-border">
+              {stats.recentExpenses.map((expense) => (
+                <div key={expense.id} className="py-3 flex items-center justify-between gap-4">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium truncate">{expense.description}</p>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <Badge variant="secondary" className="text-xs h-5 px-1.5 font-normal">
+                        {CATEGORY_LABELS[expense.category as Category] ?? expense.category}
+                      </Badge>
+                      {expense.merchant && (
+                        <span className="text-xs text-muted-foreground truncate">
+                          {expense.merchant}
+                        </span>
+                      )}
+                      <span className="text-xs text-muted-foreground whitespace-nowrap">
+                        {format(parseISO(expense.expense_date), 'dd/MM/yy')}
+                      </span>
+                    </div>
+                  </div>
+                  <span className="text-sm font-semibold text-primary whitespace-nowrap">
+                    {formatCurrency(Number(expense.value))}
+                  </span>
                 </div>
-                <span className="text-sm font-semibold text-emerald-400 whitespace-nowrap">
-                  {formatCurrency(Number(expense.value))}
-                </span>
-              </div>
-            ))
+              ))}
+            </div>
           )}
-        </div>
-      </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
@@ -240,21 +271,21 @@ function StatCard({
   title: string;
   value: string;
   sub?: string;
-  icon: string;
+  icon: React.ReactNode;
   highlight?: boolean;
 }) {
   return (
-    <div
-      className={`bg-gray-900 border rounded-xl p-4 ${
-        highlight ? 'border-emerald-800' : 'border-gray-800'
-      }`}
-    >
-      <div className="flex items-center justify-between mb-2">
-        <p className="text-xs font-medium text-gray-400">{title}</p>
-        <span className="text-lg">{icon}</span>
-      </div>
-      <p className="text-xl font-bold text-white">{value}</p>
-      {sub && <p className="text-xs text-gray-400 mt-0.5">{sub}</p>}
-    </div>
+    <Card className={highlight ? 'border-primary/40 bg-primary/5' : ''}>
+      <CardContent className="p-4">
+        <div className="flex items-center justify-between mb-3">
+          <p className="text-xs font-medium text-muted-foreground">{title}</p>
+          <span className={`${highlight ? 'text-primary' : 'text-muted-foreground'}`}>
+            {icon}
+          </span>
+        </div>
+        <p className="text-xl font-bold">{value}</p>
+        {sub && <p className="text-xs text-muted-foreground mt-0.5">{sub}</p>}
+      </CardContent>
+    </Card>
   );
 }

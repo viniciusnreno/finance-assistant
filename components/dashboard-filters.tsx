@@ -1,6 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
+import { Button } from '@/components/ui/button';
 
 interface DashboardFiltersProps {
   current: string;
@@ -11,19 +12,17 @@ export function DashboardFilters({ current, labels }: DashboardFiltersProps) {
   const router = useRouter();
 
   return (
-    <div className="flex flex-wrap gap-2">
+    <div className="flex flex-wrap gap-1.5">
       {Object.entries(labels).map(([value, label]) => (
-        <button
+        <Button
           key={value}
+          size="sm"
+          variant={current === value ? 'default' : 'secondary'}
           onClick={() => router.push(`/dashboard?filter=${value}`)}
-          className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-            current === value
-              ? 'bg-emerald-600 text-white'
-              : 'bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-white'
-          }`}
+          className="h-8 text-xs"
         >
           {label}
-        </button>
+        </Button>
       ))}
     </div>
   );

@@ -5,10 +5,64 @@ import { useRouter } from 'next/navigation';
 import { CATEGORIES, CATEGORY_LABELS, type Category, type Expense } from '@/types/expense';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { Button, buttonVariants } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogClose,
+} from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { Pencil, Trash2, Download, Search, CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react';
 
 function formatCurrency(value: number): string {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 }
+
+const CATEGORY_BADGE_COLORS: Record<string, string> = {
+  alimentacao: 'bg-orange-500/15 text-orange-400 border-orange-500/25',
+  mercado: 'bg-lime-500/15 text-lime-400 border-lime-500/25',
+  transporte: 'bg-blue-500/15 text-blue-400 border-blue-500/25',
+  combustivel: 'bg-yellow-500/15 text-yellow-400 border-yellow-500/25',
+  saude: 'bg-red-500/15 text-red-400 border-red-500/25',
+  educacao: 'bg-violet-500/15 text-violet-400 border-violet-500/25',
+  lazer: 'bg-pink-500/15 text-pink-400 border-pink-500/25',
+  casa: 'bg-teal-500/15 text-teal-400 border-teal-500/25',
+  assinaturas: 'bg-indigo-500/15 text-indigo-400 border-indigo-500/25',
+  contas: 'bg-amber-500/15 text-amber-400 border-amber-500/25',
+  familia: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/25',
+  viagem: 'bg-cyan-500/15 text-cyan-400 border-cyan-500/25',
+  outros: 'bg-gray-500/15 text-gray-400 border-gray-500/25',
+};
 
 interface Filters {
   from: string;
@@ -53,6 +107,8 @@ export function TransactionsClient({
 
   const [expenses, setExpenses] = useState<Expense[]>(initialExpenses);
   const [editState, setEditState] = useState<EditState | null>(null);
+  const [editOpen, setEditOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [savingId, setSavingId] = useState<string | null>(null);
   const [error, setError] = useState('');
@@ -96,11 +152,15 @@ export function TransactionsClient({
       expense_date: expense.expense_date,
     });
     setError('');
+    setEditOpen(true);
   }
 
-  function cancelEdit() {
-    setEditState(null);
-    setError('');
+  function closeEdit() {
+    setEditOpen(false);
+    setTimeout(() => {
+      setEditState(null);
+      setError('');
+    }, 200);
   }
 
   async function saveEdit() {
@@ -129,7 +189,7 @@ export function TransactionsClient({
 
       const { data } = await res.json();
       setExpenses((prev) => prev.map((e) => (e.id === data.id ? data : e)));
-      setEditState(null);
+      closeEdit();
     } catch {
       setError('Erro de conexão.');
     } finally {
@@ -137,18 +197,18 @@ export function TransactionsClient({
     }
   }
 
-  async function handleDelete(id: string) {
-    if (!confirm('Confirma a exclusão deste gasto?')) return;
-    setDeletingId(id);
-    setError('');
+  async function confirmDelete() {
+    if (!deleteTarget) return;
+    setDeletingId(deleteTarget);
+    setDeleteTarget(null);
 
     try {
-      const res = await fetch(`/api/expenses/${id}`, { method: 'DELETE' });
+      const res = await fetch(`/api/expenses/${deleteTarget}`, { method: 'DELETE' });
       if (!res.ok) {
         setError('Erro ao excluir.');
         return;
       }
-      setExpenses((prev) => prev.filter((e) => e.id !== id));
+      setExpenses((prev) => prev.filter((e) => e.id !== deleteTarget));
     } catch {
       setError('Erro de conexão.');
     } finally {
@@ -156,283 +216,373 @@ export function TransactionsClient({
     }
   }
 
-  const isEditing = (id: string) => editState?.id === id;
+  function buildPageUrl(page: number) {
+    const params = new URLSearchParams();
+    params.set('from', localFilters.from);
+    params.set('to', localFilters.to);
+    if (localFilters.category) params.set('category', localFilters.category);
+    if (localFilters.search) params.set('search', localFilters.search);
+    params.set('page', String(page));
+    return `/dashboard/transactions?${params.toString()}`;
+  }
 
   return (
     <div className="space-y-6">
+      {/* Cabeçalho */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold">Transações</h1>
-          <p className="text-gray-400 text-sm mt-0.5">
+          <h1 className="text-2xl font-bold tracking-tight">Transações</h1>
+          <p className="text-muted-foreground text-sm mt-1">
             {totalCount} {totalCount === 1 ? 'gasto' : 'gastos'} encontrados
           </p>
         </div>
         <a
           href={exportUrl}
           download
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-800 hover:bg-gray-700 text-sm text-white transition-colors"
+          className={buttonVariants({ variant: 'secondary', size: 'sm', className: 'gap-2 self-start' })}
         >
-          <span>⬇️</span> Exportar CSV
+          <Download className="h-4 w-4" />
+          Exportar CSV
         </a>
       </div>
 
       {/* Filtros */}
-      <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 space-y-4">
-        <div className="flex flex-wrap gap-2">
-          {(['today', '7d', '30d', 'month'] as const).map((r) => {
-            const labels = { today: 'Hoje', '7d': '7 dias', '30d': '30 dias', month: 'Mês' };
-            return (
-              <button
-                key={r}
-                onClick={() => setQuickRange(r)}
-                className="px-3 py-1.5 rounded-lg text-xs font-medium bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-white transition-colors"
-              >
-                {labels[r]}
-              </button>
-            );
-          })}
-        </div>
+      <Card>
+        <CardContent className="pt-4 space-y-4">
+          <div className="flex flex-wrap gap-1.5">
+            {(['today', '7d', '30d', 'month'] as const).map((r) => {
+              const labels = { today: 'Hoje', '7d': '7 dias', '30d': '30 dias', month: 'Mês' };
+              return (
+                <Button
+                  key={r}
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setQuickRange(r)}
+                  className="h-7 text-xs"
+                >
+                  {labels[r]}
+                </Button>
+              );
+            })}
+          </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-          <div>
-            <label className="block text-xs text-gray-400 mb-1">De</label>
-            <input
-              type="date"
-              value={localFilters.from}
-              onChange={(e) => setLocalFilters((f) => ({ ...f, from: e.target.value }))}
-              onBlur={() => applyFilters({ from: localFilters.from })}
-              className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-            />
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">De</Label>
+              <Input
+                type="date"
+                value={localFilters.from}
+                onChange={(e) => setLocalFilters((f) => ({ ...f, from: e.target.value }))}
+                onBlur={() => applyFilters({ from: localFilters.from })}
+                className="h-9 text-sm"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Até</Label>
+              <Input
+                type="date"
+                value={localFilters.to}
+                onChange={(e) => setLocalFilters((f) => ({ ...f, to: e.target.value }))}
+                onBlur={() => applyFilters({ to: localFilters.to })}
+                className="h-9 text-sm"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Categoria</Label>
+              <Select
+                value={localFilters.category || 'all'}
+                onValueChange={(v) => applyFilters({ category: !v || v === 'all' ? '' : v })}
+              >
+                <SelectTrigger className="h-9 text-sm">
+                  <SelectValue placeholder="Todas" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas</SelectItem>
+                  {CATEGORIES.map((c) => (
+                    <SelectItem key={c} value={c}>
+                      {CATEGORY_LABELS[c]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Buscar</Label>
+              <div className="relative">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                <Input
+                  type="text"
+                  placeholder="Descrição, local..."
+                  value={localFilters.search}
+                  onChange={(e) => setLocalFilters((f) => ({ ...f, search: e.target.value }))}
+                  onKeyDown={(e) => e.key === 'Enter' && applyFilters({ search: localFilters.search })}
+                  onBlur={() => applyFilters({ search: localFilters.search })}
+                  className="h-9 text-sm pl-8"
+                />
+              </div>
+            </div>
           </div>
-          <div>
-            <label className="block text-xs text-gray-400 mb-1">Até</label>
-            <input
-              type="date"
-              value={localFilters.to}
-              onChange={(e) => setLocalFilters((f) => ({ ...f, to: e.target.value }))}
-              onBlur={() => applyFilters({ to: localFilters.to })}
-              className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-            />
-          </div>
-          <div>
-            <label className="block text-xs text-gray-400 mb-1">Categoria</label>
-            <select
-              value={localFilters.category}
-              onChange={(e) => applyFilters({ category: e.target.value })}
-              className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-            >
-              <option value="">Todas</option>
-              {CATEGORIES.map((c) => (
-                <option key={c} value={c}>
-                  {CATEGORY_LABELS[c]}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs text-gray-400 mb-1">Buscar</label>
-            <input
-              type="text"
-              placeholder="Descrição, local..."
-              value={localFilters.search}
-              onChange={(e) => setLocalFilters((f) => ({ ...f, search: e.target.value }))}
-              onKeyDown={(e) => e.key === 'Enter' && applyFilters({ search: localFilters.search })}
-              onBlur={() => applyFilters({ search: localFilters.search })}
-              className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-            />
-          </div>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
       {error && (
-        <p className="text-sm text-red-400 bg-red-900/20 border border-red-800/50 px-4 py-2 rounded-lg">
+        <p className="text-sm text-destructive bg-destructive/10 border border-destructive/20 px-4 py-2 rounded-lg">
           {error}
         </p>
       )}
 
       {/* Tabela */}
-      <div className={`bg-gray-900 border border-gray-800 rounded-xl overflow-hidden ${isPending ? 'opacity-60' : ''}`}>
+      <Card className={isPending ? 'opacity-60 pointer-events-none' : ''}>
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-gray-800 text-left">
-                <th className="px-4 py-3 text-xs font-medium text-gray-400">Data</th>
-                <th className="px-4 py-3 text-xs font-medium text-gray-400">Descrição</th>
-                <th className="px-4 py-3 text-xs font-medium text-gray-400">Categoria</th>
-                <th className="px-4 py-3 text-xs font-medium text-gray-400">Estabelecimento</th>
-                <th className="px-4 py-3 text-xs font-medium text-gray-400 text-right">Valor</th>
-                <th className="px-4 py-3 text-xs font-medium text-gray-400 text-center">Ações</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-800">
+          <Table>
+            <TableHeader>
+              <TableRow className="hover:bg-transparent border-border">
+                <TableHead className="text-xs text-muted-foreground w-24">
+                  <div className="flex items-center gap-1.5">
+                    <CalendarDays className="h-3.5 w-3.5" />
+                    Data
+                  </div>
+                </TableHead>
+                <TableHead className="text-xs text-muted-foreground">Descrição</TableHead>
+                <TableHead className="text-xs text-muted-foreground">Categoria</TableHead>
+                <TableHead className="text-xs text-muted-foreground hidden md:table-cell">
+                  Estabelecimento
+                </TableHead>
+                <TableHead className="text-xs text-muted-foreground text-right">Valor</TableHead>
+                <TableHead className="text-xs text-muted-foreground text-center w-24">Ações</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {expenses.length === 0 && (
-                <tr>
-                  <td colSpan={6} className="px-4 py-10 text-center text-gray-500">
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center text-muted-foreground py-12 text-sm">
                     Nenhum gasto encontrado para os filtros selecionados.
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               )}
-              {expenses.map((expense) =>
-                isEditing(expense.id) && editState ? (
-                  <tr key={expense.id} className="bg-gray-800/50">
-                    <td className="px-4 py-2">
-                      <input
-                        type="date"
-                        value={editState.expense_date}
-                        onChange={(e) => setEditState((s) => s && { ...s, expense_date: e.target.value })}
-                        className="w-full px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500"
-                      />
-                    </td>
-                    <td className="px-4 py-2">
-                      <input
-                        type="text"
-                        value={editState.description}
-                        onChange={(e) => setEditState((s) => s && { ...s, description: e.target.value })}
-                        className="w-full px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500"
-                      />
-                    </td>
-                    <td className="px-4 py-2">
-                      <select
-                        value={editState.category}
-                        onChange={(e) =>
-                          setEditState((s) => s && { ...s, category: e.target.value as Category })
-                        }
-                        className="w-full px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500"
-                      >
-                        {CATEGORIES.map((c) => (
-                          <option key={c} value={c}>
-                            {CATEGORY_LABELS[c]}
-                          </option>
-                        ))}
-                      </select>
-                    </td>
-                    <td className="px-4 py-2">
-                      <input
-                        type="text"
-                        value={editState.merchant}
-                        onChange={(e) => setEditState((s) => s && { ...s, merchant: e.target.value })}
-                        placeholder="Opcional"
-                        className="w-full px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500 placeholder-gray-500"
-                      />
-                    </td>
-                    <td className="px-4 py-2">
-                      <input
-                        type="number"
-                        step="0.01"
-                        value={editState.value}
-                        onChange={(e) => setEditState((s) => s && { ...s, value: e.target.value })}
-                        className="w-24 px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-xs text-right focus:outline-none focus:ring-1 focus:ring-emerald-500"
-                      />
-                    </td>
-                    <td className="px-4 py-2 text-center">
-                      <div className="flex items-center justify-center gap-2">
-                        <button
-                          onClick={saveEdit}
-                          disabled={!!savingId}
-                          className="px-2 py-1 text-xs bg-emerald-600 hover:bg-emerald-500 text-white rounded transition-colors disabled:opacity-50"
-                        >
-                          {savingId === editState.id ? '...' : 'Salvar'}
-                        </button>
-                        <button
-                          onClick={cancelEdit}
-                          className="px-2 py-1 text-xs bg-gray-700 hover:bg-gray-600 text-gray-300 rounded transition-colors"
-                        >
-                          Cancelar
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ) : (
-                  <tr key={expense.id} className="hover:bg-gray-800/30 transition-colors">
-                    <td className="px-4 py-3 text-gray-300 whitespace-nowrap">
-                      {format(parseISO(expense.expense_date), 'dd/MM/yy', { locale: ptBR })}
-                    </td>
-                    <td className="px-4 py-3">
-                      <p className="text-white font-medium truncate max-w-48">{expense.description}</p>
-                      {expense.payment_method && (
-                        <p className="text-xs text-gray-500">{expense.payment_method}</p>
-                      )}
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-gray-800 text-gray-300">
-                        {CATEGORY_LABELS[expense.category as Category] ?? expense.category}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-gray-400 truncate max-w-36">
-                      {expense.merchant ?? '—'}
-                    </td>
-                    <td className="px-4 py-3 text-right font-semibold text-emerald-400 whitespace-nowrap">
+              {expenses.map((expense) => (
+                <TableRow key={expense.id} className="border-border group">
+                  <TableCell className="text-muted-foreground text-sm whitespace-nowrap">
+                    {format(parseISO(expense.expense_date), 'dd/MM/yy', { locale: ptBR })}
+                  </TableCell>
+                  <TableCell>
+                    <p className="text-sm font-medium truncate max-w-52">{expense.description}</p>
+                    {expense.payment_method && (
+                      <p className="text-xs text-muted-foreground">{expense.payment_method}</p>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <span
+                      className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium border ${
+                        CATEGORY_BADGE_COLORS[expense.category] ?? 'bg-muted text-muted-foreground border-border'
+                      }`}
+                    >
+                      {CATEGORY_LABELS[expense.category as Category] ?? expense.category}
+                    </span>
+                  </TableCell>
+                  <TableCell className="text-muted-foreground text-sm truncate max-w-36 hidden md:table-cell">
+                    {expense.merchant ?? '—'}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <span className="text-sm font-semibold text-primary whitespace-nowrap">
                       {formatCurrency(Number(expense.value))}
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      <div className="flex items-center justify-center gap-2">
-                        <button
-                          onClick={() => startEdit(expense)}
-                          className="p-1.5 rounded text-gray-400 hover:text-white hover:bg-gray-700 transition-colors"
-                          title="Editar"
-                        >
-                          ✏️
-                        </button>
-                        <button
-                          onClick={() => handleDelete(expense.id)}
-                          disabled={deletingId === expense.id}
-                          className="p-1.5 rounded text-gray-400 hover:text-red-400 hover:bg-red-900/20 transition-colors disabled:opacity-50"
-                          title="Excluir"
-                        >
-                          {deletingId === expense.id ? '...' : '🗑️'}
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                )
-              )}
-            </tbody>
-          </table>
+                    </span>
+                  </TableCell>
+                  <TableCell className="text-center">
+                    <div className="flex items-center justify-center gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity"
+                        onClick={() => startEdit(expense)}
+                        title="Editar"
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
+                        onClick={() => setDeleteTarget(expense.id)}
+                        disabled={deletingId === expense.id}
+                        title="Excluir"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         </div>
 
         {/* Paginação */}
         {totalPages > 1 && (
-          <div className="px-4 py-3 border-t border-gray-800 flex items-center justify-between">
-            <p className="text-xs text-gray-400">
+          <div className="px-4 py-3 border-t border-border flex items-center justify-between">
+            <p className="text-xs text-muted-foreground">
               Página {currentPage} de {totalPages}
             </p>
             <div className="flex gap-2">
-              {currentPage > 1 && (
-                <button
-                  onClick={() => {
-                    const params = new URLSearchParams();
-                    params.set('from', localFilters.from);
-                    params.set('to', localFilters.to);
-                    if (localFilters.category) params.set('category', localFilters.category);
-                    if (localFilters.search) params.set('search', localFilters.search);
-                    params.set('page', String(currentPage - 1));
-                    startTransition(() => router.push(`/dashboard/transactions?${params.toString()}`));
-                  }}
-                  className="px-3 py-1.5 text-xs bg-gray-800 hover:bg-gray-700 text-white rounded-lg transition-colors"
-                >
-                  ← Anterior
-                </button>
-              )}
-              {currentPage < totalPages && (
-                <button
-                  onClick={() => {
-                    const params = new URLSearchParams();
-                    params.set('from', localFilters.from);
-                    params.set('to', localFilters.to);
-                    if (localFilters.category) params.set('category', localFilters.category);
-                    if (localFilters.search) params.set('search', localFilters.search);
-                    params.set('page', String(currentPage + 1));
-                    startTransition(() => router.push(`/dashboard/transactions?${params.toString()}`));
-                  }}
-                  className="px-3 py-1.5 text-xs bg-gray-800 hover:bg-gray-700 text-white rounded-lg transition-colors"
-                >
-                  Próxima →
-                </button>
-              )}
+              <Button
+                variant="secondary"
+                size="sm"
+                disabled={currentPage <= 1}
+                onClick={() =>
+                  startTransition(() => router.push(buildPageUrl(currentPage - 1)))
+                }
+                className="h-8 gap-1.5"
+              >
+                <ChevronLeft className="h-3.5 w-3.5" />
+                Anterior
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                disabled={currentPage >= totalPages}
+                onClick={() =>
+                  startTransition(() => router.push(buildPageUrl(currentPage + 1)))
+                }
+                className="h-8 gap-1.5"
+              >
+                Próxima
+                <ChevronRight className="h-3.5 w-3.5" />
+              </Button>
             </div>
           </div>
         )}
-      </div>
+      </Card>
+
+      {/* Dialog de edição */}
+      <Dialog open={editOpen} onOpenChange={(open) => !open && closeEdit()}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Editar gasto</DialogTitle>
+          </DialogHeader>
+
+          {editState && (
+            <div className="space-y-4 py-2">
+              <div className="space-y-1.5">
+                <Label htmlFor="edit-description">Descrição</Label>
+                <Input
+                  id="edit-description"
+                  value={editState.description}
+                  onChange={(e) =>
+                    setEditState((s) => s && { ...s, description: e.target.value })
+                  }
+                  placeholder="Ex: Almoço no restaurante"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="edit-value">Valor (R$)</Label>
+                  <Input
+                    id="edit-value"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={editState.value}
+                    onChange={(e) =>
+                      setEditState((s) => s && { ...s, value: e.target.value })
+                    }
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="edit-date">Data</Label>
+                  <Input
+                    id="edit-date"
+                    type="date"
+                    value={editState.expense_date}
+                    onChange={(e) =>
+                      setEditState((s) => s && { ...s, expense_date: e.target.value })
+                    }
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label>Categoria</Label>
+                <Select
+                  value={editState.category}
+                  onValueChange={(v) =>
+                    setEditState((s) => s && { ...s, category: v as Category })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {CATEGORIES.map((c) => (
+                      <SelectItem key={c} value={c}>
+                        {CATEGORY_LABELS[c]}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="edit-merchant">Estabelecimento</Label>
+                <Input
+                  id="edit-merchant"
+                  value={editState.merchant}
+                  onChange={(e) =>
+                    setEditState((s) => s && { ...s, merchant: e.target.value })
+                  }
+                  placeholder="Opcional"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="edit-payment">Forma de pagamento</Label>
+                <Input
+                  id="edit-payment"
+                  value={editState.payment_method}
+                  onChange={(e) =>
+                    setEditState((s) => s && { ...s, payment_method: e.target.value })
+                  }
+                  placeholder="Opcional"
+                />
+              </div>
+
+              {error && (
+                <p className="text-sm text-destructive">{error}</p>
+              )}
+            </div>
+          )}
+
+          <DialogFooter className="gap-2">
+            <DialogClose render={<Button variant="secondary" />} onClick={closeEdit}>
+              Cancelar
+            </DialogClose>
+            <Button onClick={saveEdit} disabled={!!savingId}>
+              {savingId ? 'Salvando...' : 'Salvar alterações'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* AlertDialog de confirmação de exclusão */}
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir gasto</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir este gasto? Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDelete}
+              className="bg-destructive text-white hover:bg-destructive/90"
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

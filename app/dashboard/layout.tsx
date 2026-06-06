@@ -1,27 +1,29 @@
 import { ReactNode } from 'react';
 import Link from 'next/link';
 import { LogoutButton } from '@/components/logout-button';
+import { Separator } from '@/components/ui/separator';
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
   return (
-    <div className="min-h-screen bg-gray-950 text-white">
-      <header className="border-b border-gray-800 bg-gray-900/80 backdrop-blur sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+    <div className="min-h-screen bg-background">
+      <header className="sticky top-0 z-50 bg-card/80 backdrop-blur-md border-b border-border">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between">
           <div className="flex items-center gap-6">
-            <Link href="/dashboard" className="flex items-center gap-2 font-bold text-lg">
-              <span className="text-emerald-400">💰</span>
-              <span>Finance</span>
+            <Link href="/dashboard" className="flex items-center gap-2 font-semibold text-base">
+              <span className="text-primary text-lg">💰</span>
+              <span className="text-foreground">Finance</span>
             </Link>
-            <nav className="hidden sm:flex items-center gap-4 text-sm">
+            <Separator orientation="vertical" className="h-5" />
+            <nav className="hidden sm:flex items-center gap-1">
               <Link
                 href="/dashboard"
-                className="text-gray-400 hover:text-white transition-colors"
+                className="px-3 py-1.5 rounded-md text-sm text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
               >
                 Visão Geral
               </Link>
               <Link
                 href="/dashboard/transactions"
-                className="text-gray-400 hover:text-white transition-colors"
+                className="px-3 py-1.5 rounded-md text-sm text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
               >
                 Transações
               </Link>
@@ -30,7 +32,9 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
           <LogoutButton />
         </div>
       </header>
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">{children}</main>
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {children}
+      </main>
     </div>
   );
 }

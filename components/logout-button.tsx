@@ -2,6 +2,8 @@
 
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { LogOut } from 'lucide-react';
 
 export function LogoutButton() {
   const router = useRouter();
@@ -14,12 +16,15 @@ export function LogoutButton() {
   }
 
   return (
-    <button
+    <Button
+      variant="ghost"
+      size="sm"
       onClick={handleLogout}
       disabled={loading}
-      className="text-sm text-gray-400 hover:text-white transition-colors disabled:opacity-50"
+      className="text-muted-foreground hover:text-foreground gap-2"
     >
-      {loading ? 'Saindo...' : 'Sair'}
-    </button>
+      <LogOut className="h-4 w-4" />
+      <span className="hidden sm:inline">{loading ? 'Saindo...' : 'Sair'}</span>
+    </Button>
   );
 }
