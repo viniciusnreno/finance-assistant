@@ -3,6 +3,7 @@ import Link from "next/link";
 import { LogoutButton } from "@/components/logout-button";
 import { NavLinks } from "@/components/nav-links";
 import { Separator } from "@/components/ui/separator";
+import Image from "next/image";
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
   return (
@@ -14,6 +15,12 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
               href="/dashboard"
               className="flex items-center gap-2 font-semibold text-base"
             >
+              <Image
+                src="/logo.png"
+                alt="Reno Finance"
+                width={32}
+                height={32}
+              />
               <span className="text-foreground">Reno Finance</span>
             </Link>
             <Separator orientation="vertical" className="h-5" />
