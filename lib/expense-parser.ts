@@ -65,7 +65,7 @@ Categorias disponíveis:
 Meios de pagamento (campo opcional, use apenas os valores abaixo se mencionados):
 - caju: Caju, VR, vale refeição, vale alimentação
 - paicard: paicard, cartão do pai, cartão pai
-- nubank_pix: nubank pix, pix nubank, pix
+- nubank_credito: nubank crédito, nubank credito, crédito nubank, credito nubank, crédito, credito
 - nubank_debito: nubank débito, nubank debito, débito nubank, débito
 
 Regras:
@@ -77,7 +77,7 @@ Regras:
 6. Valores em reais não precisam do símbolo R$, apenas o número.
 7. Sempre responda em JSON válido conforme o schema.
 8. A resposta DEVE ser um objeto JSON com as chaves "expenses", "needs_clarification" e opcionalmente "clarification_message". NUNCA retorne um array na raiz.
-9. O campo payment_method é opcional. Só preencha se o meio de pagamento for claramente identificado na mensagem. Use exatamente um dos valores: caju, paicard, nubank_pix, nubank_debito.`;
+9. O campo payment_method é opcional. Só preencha se o meio de pagamento for claramente identificado na mensagem. Use exatamente um dos valores: caju, paicard, nubank_credito, nubank_debito.`;
 
 export async function parseExpensesFromText(
   text: string,

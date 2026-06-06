@@ -65,7 +65,7 @@ const dailyChartConfig = {
 const PAYMENT_METHOD_COLORS: Record<string, string> = {
   caju: "hsl(var(--chart-1))",
   paicard: "hsl(var(--chart-2))",
-  nubank_pix: "hsl(var(--chart-3))",
+  nubank_credito: "hsl(var(--chart-3))",
   nubank_debito: "hsl(var(--chart-4))",
   sem_metodo: "hsl(var(--chart-5))",
 };

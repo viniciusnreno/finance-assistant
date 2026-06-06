@@ -1,7 +1,7 @@
 export const PAYMENT_METHODS = [
   'caju',
   'paicard',
-  'nubank_pix',
+  'nubank_credito',
   'nubank_debito',
 ] as const;
 
@@ -10,7 +10,7 @@ export type PaymentMethod = (typeof PAYMENT_METHODS)[number];
 export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
   caju: 'Caju (VR)',
   paicard: 'Paicard',
-  nubank_pix: 'Nubank PIX',
+  nubank_credito: 'Nubank Crédito',
   nubank_debito: 'Nubank Débito',
 };
 
