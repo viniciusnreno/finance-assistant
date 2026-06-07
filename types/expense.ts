@@ -28,6 +28,8 @@ export const CATEGORIES = [
   'contas',
   'viagem',
   'presentes',
+  'tecnologia',
+  'roupas',
   'outros',
 ] as const;
 
@@ -47,6 +49,8 @@ export const CATEGORY_LABELS: Record<Category, string> = {
   contas: 'Contas',
   viagem: 'Viagem',
   presentes: 'Presentes',
+  tecnologia: 'Tecnologia',
+  roupas: 'Roupas',
   outros: 'Outros',
 };
 

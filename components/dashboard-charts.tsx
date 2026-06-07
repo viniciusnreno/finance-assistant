@@ -5,8 +5,6 @@ import {
   BarChart,
   Area,
   AreaChart,
-  Pie,
-  PieChart,
   Cell,
   CartesianGrid,
   XAxis,
@@ -17,8 +15,6 @@ import {
   ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
-  ChartLegend,
-  ChartLegendContent,
   type ChartConfig,
 } from "@/components/ui/chart";
 
@@ -48,11 +44,39 @@ function formatCurrency(value: number): string {
   }).format(value);
 }
 
+const CATEGORY_COLORS: Record<string, string> = {
+  alimentacao: "#f97316",
+  mercado: "#84cc16",
+  transporte: "#3b82f6",
+  combustivel: "#eab308",
+  saude: "#ef4444",
+  educacao: "#8b5cf6",
+  roles: "#ec4899",
+  consumiveis: "#a855f7",
+  casa: "#14b8a6",
+  assinaturas: "#6366f1",
+  contas: "#f59e0b",
+  viagem: "#06b6d4",
+  presentes: "#f43f5e",
+  tecnologia: "#0ea5e9",
+  roupas: "#d946ef",
+  outros: "#6b7280",
+};
+
+const PAYMENT_METHOD_COLORS: Record<string, string> = {
+  caju: "#22c55e",
+  paicard: "#3b82f6",
+  nubank_credito: "#a855f7",
+  nubank_debito: "#8b5cf6",
+  sem_metodo: "#6b7280",
+};
+
 const categoryChartConfig = {
-  total: {
-    label: "Total",
-    color: "hsl(var(--chart-1))",
-  },
+  total: { label: "Total" },
+} satisfies ChartConfig;
+
+const paymentChartConfig = {
+  total: { label: "Total" },
 } satisfies ChartConfig;
 
 const dailyChartConfig = {
@@ -61,14 +85,6 @@ const dailyChartConfig = {
     color: "hsl(var(--chart-2))",
   },
 } satisfies ChartConfig;
-
-const PAYMENT_METHOD_COLORS: Record<string, string> = {
-  caju: "hsl(var(--chart-1))",
-  paicard: "hsl(var(--chart-2))",
-  nubank_credito: "hsl(var(--chart-3))",
-  nubank_debito: "hsl(var(--chart-4))",
-  sem_metodo: "hsl(var(--chart-5))",
-};
 
 export function CategoryBarChart({ data }: { data: CategoryData[] }) {
   if (data.length === 0) {
@@ -110,7 +126,15 @@ export function CategoryBarChart({ data }: { data: CategoryData[] }) {
             />
           }
         />
-        <Bar dataKey="total" fill="var(--color-total)" radius={4} />
+        <Bar dataKey="total" radius={4}>
+          {data.map((entry) => (
+            <Cell
+              key={entry.category}
+              fill={CATEGORY_COLORS[entry.category] ?? "#6b7280"}
+              fillOpacity={0.85}
+            />
+          ))}
+        </Bar>
       </BarChart>
     </ChartContainer>
   );
@@ -125,41 +149,47 @@ export function PaymentMethodDonutChart({ data }: { data: PaymentMethodData[] })
     );
   }
 
-  const chartConfig = Object.fromEntries(
-    data.map((d) => [
-      d.method,
-      { label: d.label, color: PAYMENT_METHOD_COLORS[d.method] ?? "hsl(var(--chart-5))" },
-    ]),
-  ) satisfies ChartConfig;
-
   return (
-    <ChartContainer config={chartConfig} className="h-[220px] w-full">
-      <PieChart>
-        <Pie
-          data={data}
-          dataKey="total"
-          nameKey="method"
-          innerRadius="55%"
-          outerRadius="80%"
-          paddingAngle={2}
-        >
-          {data.map((entry) => (
-            <Cell
-              key={entry.method}
-              fill={PAYMENT_METHOD_COLORS[entry.method] ?? "hsl(var(--chart-5))"}
-            />
-          ))}
-        </Pie>
+    <ChartContainer config={paymentChartConfig} className="h-[220px] w-full">
+      <BarChart
+        data={data}
+        layout="vertical"
+        margin={{ left: 0, right: 16, top: 4, bottom: 4 }}
+      >
+        <CartesianGrid horizontal={false} />
+        <XAxis
+          type="number"
+          tickLine={false}
+          axisLine={false}
+          tickFormatter={(v) => formatCurrency(v)}
+          tick={{ fontSize: 11 }}
+        />
+        <YAxis
+          type="category"
+          dataKey="label"
+          tickLine={false}
+          axisLine={false}
+          width={104}
+          tick={{ fontSize: 11 }}
+        />
         <ChartTooltip
+          cursor={false}
           content={
             <ChartTooltipContent
               formatter={(value) => formatCurrency(Number(value))}
-              nameKey="method"
             />
           }
         />
-        <ChartLegend content={<ChartLegendContent nameKey="method" />} />
-      </PieChart>
+        <Bar dataKey="total" radius={4}>
+          {data.map((entry) => (
+            <Cell
+              key={entry.method}
+              fill={PAYMENT_METHOD_COLORS[entry.method] ?? "#6b7280"}
+              fillOpacity={0.85}
+            />
+          ))}
+        </Bar>
+      </BarChart>
     </ChartContainer>
   );
 }

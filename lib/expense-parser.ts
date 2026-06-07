@@ -60,6 +60,8 @@ Categorias disponíveis:
 - contas: luz, água, internet, telefone, gás
 - viagem: hotel, passagem aérea, passeios, turismo
 - presentes: presentes para pessoas, gift, mimo
+- tecnologia: eletrônicos, fones de ouvido, air pods, airpods, carregador, cabo, celular, computador, notebook, tablet, acessórios tech, gadgets, smartwatch
+- roupas: vestuário, camiseta, calça, tênis, sapato, roupa, moda, acessórios de moda
 - outros: qualquer coisa que não se encaixa nas anteriores
 
 Meios de pagamento (campo opcional, use apenas os valores abaixo se mencionados):
