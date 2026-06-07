@@ -278,27 +278,27 @@ export function TransactionsClient({
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-            <div className="space-y-1.5">
+            <div className="space-y-1.5 min-w-0">
               <Label className="text-xs text-muted-foreground">De</Label>
               <Input
                 type="date"
                 value={localFilters.from}
                 onChange={(e) => setLocalFilters((f) => ({ ...f, from: e.target.value }))}
                 onBlur={() => applyFilters({ from: localFilters.from })}
-                className="h-9 text-sm"
+                className="h-9 text-sm w-full min-w-0 max-w-full"
               />
             </div>
-            <div className="space-y-1.5">
+            <div className="space-y-1.5 min-w-0">
               <Label className="text-xs text-muted-foreground">Até</Label>
               <Input
                 type="date"
                 value={localFilters.to}
                 onChange={(e) => setLocalFilters((f) => ({ ...f, to: e.target.value }))}
                 onBlur={() => applyFilters({ to: localFilters.to })}
-                className="h-9 text-sm"
+                className="h-9 text-sm w-full min-w-0 max-w-full"
               />
             </div>
-            <div className="space-y-1.5">
+            <div className="space-y-1.5 min-w-0">
               <Label className="text-xs text-muted-foreground">Categoria</Label>
               <Select
                 value={localFilters.category || 'all'}
@@ -317,7 +317,7 @@ export function TransactionsClient({
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-1.5">
+            <div className="space-y-1.5 min-w-0">
               <Label className="text-xs text-muted-foreground">Buscar</Label>
               <div className="relative">
                 <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
@@ -344,7 +344,6 @@ export function TransactionsClient({
 
       {/* Tabela */}
       <Card className={isPending ? 'opacity-60 pointer-events-none' : ''}>
-        <div className="overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow className="hover:bg-transparent border-border">
@@ -354,7 +353,9 @@ export function TransactionsClient({
                     Data
                   </div>
                 </TableHead>
-                <TableHead className="text-xs text-muted-foreground">Descrição</TableHead>
+                <TableHead className="text-xs text-muted-foreground sticky left-0 z-20 min-w-[140px] max-w-[180px] bg-card shadow-[2px_0_6px_-2px_rgba(0,0,0,0.12)]">
+                  Descrição
+                </TableHead>
                 <TableHead className="text-xs text-muted-foreground">Categoria</TableHead>
                 <TableHead className="text-xs text-muted-foreground hidden md:table-cell">
                   Estabelecimento
@@ -376,10 +377,10 @@ export function TransactionsClient({
                   <TableCell className="text-muted-foreground text-sm whitespace-nowrap">
                     {format(parseISO(expense.expense_date), 'dd/MM/yy', { locale: ptBR })}
                   </TableCell>
-                  <TableCell>
-                    <p className="text-sm font-medium truncate max-w-52">{expense.description}</p>
+                  <TableCell className="sticky left-0 z-10 min-w-[140px] max-w-[180px] bg-card group-hover:bg-muted/50 shadow-[2px_0_6px_-2px_rgba(0,0,0,0.12)] whitespace-normal">
+                    <p className="text-sm font-medium truncate">{expense.description}</p>
                     {expense.payment_method && (
-                      <p className="text-xs text-muted-foreground">
+                      <p className="text-xs text-muted-foreground truncate">
                         {PAYMENT_METHOD_LABELS[expense.payment_method as PaymentMethod] ?? expense.payment_method}
                       </p>
                     )}
@@ -406,7 +407,7 @@ export function TransactionsClient({
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-8 w-8 text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity"
+                        className="h-8 w-8 text-muted-foreground hover:text-foreground opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
                         onClick={() => startEdit(expense)}
                         title="Editar"
                       >
@@ -415,7 +416,7 @@ export function TransactionsClient({
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-8 w-8 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
+                        className="h-8 w-8 text-muted-foreground hover:text-destructive opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
                         onClick={() => setDeleteTarget(expense.id)}
                         disabled={deletingId === expense.id}
                         title="Excluir"
@@ -428,7 +429,6 @@ export function TransactionsClient({
               ))}
             </TableBody>
           </Table>
-        </div>
 
         {/* Paginação */}
         {totalPages > 1 && (
@@ -468,14 +468,14 @@ export function TransactionsClient({
 
       {/* Dialog de edição */}
       <Dialog open={editOpen} onOpenChange={(open) => !open && closeEdit()}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md max-h-[90dvh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Editar gasto</DialogTitle>
           </DialogHeader>
 
           {editState && (
-            <div className="space-y-4 py-2">
-              <div className="space-y-1.5">
+            <div className="space-y-4 py-2 min-w-0">
+              <div className="space-y-1.5 min-w-0">
                 <Label htmlFor="edit-description">Descrição</Label>
                 <Input
                   id="edit-description"
@@ -484,11 +484,12 @@ export function TransactionsClient({
                     setEditState((s) => s && { ...s, description: e.target.value })
                   }
                   placeholder="Ex: Almoço no restaurante"
+                  className="w-full min-w-0"
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1.5 min-w-0">
                   <Label htmlFor="edit-value">Valor (R$)</Label>
                   <Input
                     id="edit-value"
@@ -499,9 +500,10 @@ export function TransactionsClient({
                     onChange={(e) =>
                       setEditState((s) => s && { ...s, value: e.target.value })
                     }
+                    className="w-full min-w-0"
                   />
                 </div>
-                <div className="space-y-1.5">
+                <div className="space-y-1.5 min-w-0">
                   <Label htmlFor="edit-date">Data</Label>
                   <Input
                     id="edit-date"
@@ -510,6 +512,7 @@ export function TransactionsClient({
                     onChange={(e) =>
                       setEditState((s) => s && { ...s, expense_date: e.target.value })
                     }
+                    className="w-full min-w-0 max-w-full"
                   />
                 </div>
               </div>
@@ -535,7 +538,7 @@ export function TransactionsClient({
                 </Select>
               </div>
 
-              <div className="space-y-1.5">
+              <div className="space-y-1.5 min-w-0">
                 <Label htmlFor="edit-merchant">Estabelecimento</Label>
                 <Input
                   id="edit-merchant"
@@ -544,6 +547,7 @@ export function TransactionsClient({
                     setEditState((s) => s && { ...s, merchant: e.target.value })
                   }
                   placeholder="Opcional"
+                  className="w-full min-w-0"
                 />
               </div>
 
