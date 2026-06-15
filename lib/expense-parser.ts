@@ -11,8 +11,8 @@ function todayInTimezone(): string {
 }
 
 const ExpenseItemSchema = z.object({
-  value: z.union([z.number(), z.string()]).transform((v) => Number(v)),
-  amount: z.union([z.number(), z.string()]).optional().transform((v) => v !== undefined ? Number(v) : undefined),
+  value: z.union([z.number(), z.string(), z.null()]).transform((v) => (v !== null ? Number(v) : null)),
+  amount: z.union([z.number(), z.string(), z.null()]).optional().transform((v) => (v !== undefined && v !== null ? Number(v) : undefined)),
   currency: z.string().default('BRL'),
   category: z.enum(CATEGORIES).catch('outros'),
   description: z.string().optional(),

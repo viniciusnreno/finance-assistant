@@ -42,7 +42,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Pencil, Trash2, Download, Search, CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Pencil, Trash2, Download, Search, CalendarDays, ChevronLeft, ChevronRight, Plus } from 'lucide-react';
 
 function formatCurrency(value: number): string {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
@@ -95,6 +95,26 @@ interface EditState {
   expense_date: string;
 }
 
+interface AddState {
+  description: string;
+  value: string;
+  category: Category;
+  merchant: string;
+  payment_method: string;
+  expense_date: string;
+}
+
+function emptyAddState(today: string): AddState {
+  return {
+    description: '',
+    value: '',
+    category: 'outros',
+    merchant: '',
+    payment_method: '',
+    expense_date: today,
+  };
+}
+
 export function TransactionsClient({
   initialExpenses,
   totalCount,
@@ -115,6 +135,11 @@ export function TransactionsClient({
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [savingId, setSavingId] = useState<string | null>(null);
   const [error, setError] = useState('');
+
+  const [addOpen, setAddOpen] = useState(false);
+  const [addState, setAddState] = useState<AddState>(() => emptyAddState(today));
+  const [addError, setAddError] = useState('');
+  const [isSavingAdd, setIsSavingAdd] = useState(false);
 
   const [localFilters, setLocalFilters] = useState(filters);
 
@@ -172,6 +197,63 @@ export function TransactionsClient({
       setEditState(null);
       setError('');
     }, 200);
+  }
+
+  function openAdd() {
+    setAddState(emptyAddState(today));
+    setAddError('');
+    setAddOpen(true);
+  }
+
+  function closeAdd() {
+    setAddOpen(false);
+    setTimeout(() => {
+      setAddState(emptyAddState(today));
+      setAddError('');
+    }, 200);
+  }
+
+  async function saveAdd() {
+    const valueNum = Number(addState.value);
+    if (!addState.description.trim()) {
+      setAddError('Descrição é obrigatória.');
+      return;
+    }
+    if (!addState.value || isNaN(valueNum) || valueNum <= 0) {
+      setAddError('Informe um valor válido maior que zero.');
+      return;
+    }
+
+    setIsSavingAdd(true);
+    setAddError('');
+
+    try {
+      const res = await fetch('/api/expenses', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          description: addState.description.trim(),
+          value: valueNum,
+          category: addState.category,
+          merchant: addState.merchant.trim() || undefined,
+          payment_method: addState.payment_method || undefined,
+          expense_date: addState.expense_date,
+        }),
+      });
+
+      if (!res.ok) {
+        setAddError('Erro ao salvar. Tente novamente.');
+        return;
+      }
+
+      const { data } = await res.json();
+      setExpenses((prev) => [data, ...prev]);
+      closeAdd();
+    } catch {
+      setAddError('Erro de conexão.');
+    } finally {
+      setIsSavingAdd(false);
+    }
   }
 
   async function saveEdit() {
@@ -247,14 +329,20 @@ export function TransactionsClient({
             {totalCount} {totalCount === 1 ? 'gasto' : 'gastos'} encontrados
           </p>
         </div>
-        <a
-          href={exportUrl}
-          download
-          className={buttonVariants({ variant: 'secondary', size: 'sm', className: 'gap-2 self-start' })}
-        >
-          <Download className="h-4 w-4" />
-          Exportar CSV
-        </a>
+        <div className="flex items-center gap-2 self-start">
+          <Button size="sm" className="gap-2" onClick={openAdd}>
+            <Plus className="h-4 w-4" />
+            Novo gasto
+          </Button>
+          <a
+            href={exportUrl}
+            download
+            className={buttonVariants({ variant: 'secondary', size: 'sm', className: 'gap-2' })}
+          >
+            <Download className="h-4 w-4" />
+            Exportar CSV
+          </a>
+        </div>
       </div>
 
       {/* Filtros */}
@@ -465,6 +553,120 @@ export function TransactionsClient({
           </div>
         )}
       </Card>
+
+      {/* Dialog de novo gasto */}
+      <Dialog open={addOpen} onOpenChange={(open) => !open && closeAdd()}>
+        <DialogContent className="sm:max-w-md max-h-[90dvh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Novo gasto</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2 min-w-0">
+            <div className="space-y-1.5 min-w-0">
+              <Label htmlFor="add-description">Descrição</Label>
+              <Input
+                id="add-description"
+                value={addState.description}
+                onChange={(e) => setAddState((s) => ({ ...s, description: e.target.value }))}
+                placeholder="Ex: Almoço no restaurante"
+                className="w-full min-w-0"
+                autoFocus
+              />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-1.5 min-w-0">
+                <Label htmlFor="add-value">Valor (R$)</Label>
+                <Input
+                  id="add-value"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={addState.value}
+                  onChange={(e) => setAddState((s) => ({ ...s, value: e.target.value }))}
+                  placeholder="0,00"
+                  className="w-full min-w-0"
+                />
+              </div>
+              <div className="space-y-1.5 min-w-0">
+                <Label htmlFor="add-date">Data</Label>
+                <Input
+                  id="add-date"
+                  type="date"
+                  value={addState.expense_date}
+                  onChange={(e) => setAddState((s) => ({ ...s, expense_date: e.target.value }))}
+                  className="w-full min-w-0 max-w-full"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label>Categoria</Label>
+              <Select
+                value={addState.category}
+                onValueChange={(v) => setAddState((s) => ({ ...s, category: v as Category }))}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {CATEGORIES.map((c) => (
+                    <SelectItem key={c} value={c}>
+                      {CATEGORY_LABELS[c]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5 min-w-0">
+              <Label htmlFor="add-merchant">Estabelecimento</Label>
+              <Input
+                id="add-merchant"
+                value={addState.merchant}
+                onChange={(e) => setAddState((s) => ({ ...s, merchant: e.target.value }))}
+                placeholder="Opcional"
+                className="w-full min-w-0"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="add-payment">Forma de pagamento</Label>
+              <Select
+                value={addState.payment_method || '__none__'}
+                onValueChange={(v) =>
+                  setAddState((s) => ({ ...s, payment_method: !v || v === '__none__' ? '' : v }))
+                }
+              >
+                <SelectTrigger id="add-payment">
+                  <SelectValue placeholder="Opcional" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">Nenhum</SelectItem>
+                  {PAYMENT_METHODS.map((pm) => (
+                    <SelectItem key={pm} value={pm}>
+                      {PAYMENT_METHOD_LABELS[pm]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {addError && (
+              <p className="text-sm text-destructive">{addError}</p>
+            )}
+          </div>
+
+          <DialogFooter className="gap-2">
+            <DialogClose render={<Button variant="secondary" />} onClick={closeAdd}>
+              Cancelar
+            </DialogClose>
+            <Button onClick={saveAdd} disabled={isSavingAdd}>
+              {isSavingAdd ? 'Salvando...' : 'Adicionar gasto'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Dialog de edição */}
       <Dialog open={editOpen} onOpenChange={(open) => !open && closeEdit()}>
