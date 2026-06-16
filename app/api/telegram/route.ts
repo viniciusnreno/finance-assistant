@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { sendMessage, downloadFile } from '@/lib/telegram';
 import { parseExpensesFromText, transcribeAudio } from '@/lib/expense-parser';
 import { supabase } from '@/lib/supabase';
+import { getPendingText, setPendingText, clearPendingText } from '@/lib/bot-session';
 import { toZonedTime, format } from 'date-fns-tz';
 import type { ParsedExpense } from '@/types/expense';
 
@@ -113,18 +114,27 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: true });
     }
 
+    // If there's a pending clarification context, merge it with the new message
+    const pendingText = await getPendingText(chatId);
+    const textToParse = pendingText ? `${pendingText}\n${text}` : text;
+
     const { expenses, needsClarification, clarificationMessage } = await parseExpensesFromText(
-      text,
+      textToParse,
       todayInTimezone()
     );
 
     if (needsClarification || expenses.length === 0) {
+      // Persist combined text so subsequent replies accumulate context
+      await setPendingText(chatId, textToParse);
       await sendMessage(
         chatId,
         clarificationMessage ?? 'Não entendi o gasto. Pode informar o valor e o que foi gasto?'
       );
       return NextResponse.json({ ok: true });
     }
+
+    // Clarification resolved — discard any pending context
+    await clearPendingText(chatId);
 
     const rows = expenses.map((e: ParsedExpense) => ({
       expense_date: e.expense_date ?? todayInTimezone(),
