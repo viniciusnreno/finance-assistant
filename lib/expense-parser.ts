@@ -69,6 +69,7 @@ Meios de pagamento (campo opcional, use apenas os valores abaixo se mencionados)
 - paicard: paicard, cartão do pai, cartão pai
 - nubank_credito: nubank crédito, nubank credito, crédito nubank, credito nubank, crédito, credito
 - nubank_debito: nubank débito, nubank debito, débito nubank, débito
+- c6_black: c6, c6 black, cartão c6, c6bank
 - c6_black: c6 black, c6, cartão c6, cartao c6
 
 Regras:
