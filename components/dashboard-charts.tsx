@@ -68,6 +68,7 @@ const PAYMENT_METHOD_COLORS: Record<string, string> = {
   paicard: "#3b82f6",
   nubank_credito: "#a855f7",
   nubank_debito: "#8b5cf6",
+  c6_black: "#000000",
   sem_metodo: "#6b7280",
 };
 

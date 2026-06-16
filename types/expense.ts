@@ -3,6 +3,7 @@ export const PAYMENT_METHODS = [
   'paicard',
   'nubank_credito',
   'nubank_debito',
+  'c6_black',
 ] as const;
 
 export type PaymentMethod = (typeof PAYMENT_METHODS)[number];
@@ -12,6 +13,7 @@ export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
   paicard: 'Paicard',
   nubank_credito: 'Nubank Crédito',
   nubank_debito: 'Nubank Débito',
+  c6_black: 'C6 Black',
 };
 
 export const CATEGORIES = [

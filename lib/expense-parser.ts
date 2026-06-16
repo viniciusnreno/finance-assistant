@@ -69,6 +69,7 @@ Meios de pagamento (campo opcional, use apenas os valores abaixo se mencionados)
 - paicard: paicard, cartão do pai, cartão pai
 - nubank_credito: nubank crédito, nubank credito, crédito nubank, credito nubank, crédito, credito
 - nubank_debito: nubank débito, nubank debito, débito nubank, débito
+- c6_black: c6 black, c6, cartão c6, cartao c6
 
 Regras:
 1. Extraia TODAS as despesas mencionadas na mensagem.
@@ -79,7 +80,7 @@ Regras:
 6. Valores em reais não precisam do símbolo R$, apenas o número.
 7. Sempre responda em JSON válido conforme o schema.
 8. A resposta DEVE ser um objeto JSON com as chaves "expenses", "needs_clarification" e opcionalmente "clarification_message". NUNCA retorne um array na raiz.
-9. O campo payment_method é opcional. Só preencha se o meio de pagamento for claramente identificado na mensagem. Use exatamente um dos valores: caju, paicard, nubank_credito, nubank_debito.`;
+9. O campo payment_method é opcional. Só preencha se o meio de pagamento for claramente identificado na mensagem. Use exatamente um dos valores: caju, paicard, nubank_credito, nubank_debito, c6_black.`;
 
 export async function parseExpensesFromText(
   text: string,
